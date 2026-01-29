@@ -1,0 +1,77 @@
+version: "3.9"
+
+services:
+  postgres-wallet:
+    image: postgres:16-alpine
+    container_name: ilia-postgres-wallet
+    environment:
+      POSTGRES_DB: wallet
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5432:5432"
+    volumes:
+      - wallet-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  postgres-users:
+    image: postgres:16-alpine
+    container_name: ilia-postgres-users
+    environment:
+      POSTGRES_DB: users
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5433:5432"
+    volumes:
+      - users-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  wallet-service:
+    build:
+      context: ./wallet-service
+      dockerfile: Dockerfile
+    container_name: ilia-wallet-service
+    ports:
+      - "3001:3001"
+    environment:
+      DATABASE_URL: postgresql://postgres:password@postgres-wallet:5432/wallet?schema=public
+      JWT_PRIVATE_KEY: ILIACHALLENGE
+      JWT_INTERNAL_KEY: ILIACHALLENGE_INTERNAL
+      PORT: 3001
+      NODE_ENV: production
+    depends_on:
+      postgres-wallet:
+        condition: service_healthy
+    restart: unless-stopped
+
+  user-service:
+    build:
+      context: ./user-service
+      dockerfile: Dockerfile
+    container_name: ilia-user-service
+    ports:
+      - "3002:3002"
+    environment:
+      DATABASE_URL: postgresql://postgres:password@postgres-users:5432/users?schema=public
+      JWT_PRIVATE_KEY: ILIACHALLENGE
+      JWT_INTERNAL_KEY: ILIACHALLENGE_INTERNAL
+      WALLET_SERVICE_URL: http://wallet-service:3001
+      PORT: 3002
+      NODE_ENV: production
+    depends_on:
+      postgres-users:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  wallet-db-data:
+  users-db-data:
