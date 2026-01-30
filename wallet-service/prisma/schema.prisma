@@ -21,7 +21,7 @@ model Transaction {
   user_id         Int
   amount          Decimal         @db.Decimal(10, 2)
   type            TransactionType
-  idempotency_key String?         @unique
+  idempotency_key String         @unique
   created_at      DateTime        @default(now())
   
   @@index([user_id])
