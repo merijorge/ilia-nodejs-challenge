@@ -1,8 +1,7 @@
-import { IsInt, IsNotEmpty, IsPositive } from 'class-validator';
+import { IsNotEmpty, IsUUID } from 'class-validator';
 
 export class CreateWalletDto {
-  @IsInt()
-  @IsPositive()
+  @IsUUID()
   @IsNotEmpty()
-  userId: number;
+  userId: string;
 }

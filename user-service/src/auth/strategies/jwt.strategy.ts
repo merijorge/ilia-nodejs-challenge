@@ -4,16 +4,13 @@ import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 
 @Injectable()
-export class InternalJwtStrategy extends PassportStrategy(
-  Strategy,
-  'jwt-internal',
-) {
+export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
   constructor(private configService: ConfigService) {
-    const secret = configService.get<string>('JWT_INTERNAL_KEY');
+    const secret = configService.get<string>('JWT_PRIVATE_KEY');
 
     if (!secret) {
       throw new Error(
-        'JWT_INTERNAL_KEY is not defined in environment variables',
+        'JWT_PRIVATE_KEY is not defined in environment variables',
       );
     }
 
@@ -25,13 +22,10 @@ export class InternalJwtStrategy extends PassportStrategy(
   }
 
   async validate(payload: any) {
-    // Validate that it's from a trusted internal service
-    if (!payload.service || payload.service !== 'user-service') {
-      throw new UnauthorizedException(
-        'Invalid internal token - not from trusted service',
-      );
+    if (!payload.sub) {
+      throw new UnauthorizedException('Invalid token payload');
     }
 
-    return { service: payload.service };
+    return { userId: payload.sub, email: payload.email };
   }
 }

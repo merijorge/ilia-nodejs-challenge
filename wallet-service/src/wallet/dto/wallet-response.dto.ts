@@ -1,5 +1,5 @@
 export class WalletResponseDto {
-  userId: number;
+  userId: string;
   balance: number;
   createdAt: Date;
   updatedAt: Date;

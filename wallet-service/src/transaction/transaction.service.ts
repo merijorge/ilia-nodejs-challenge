@@ -13,7 +13,7 @@ import { CreateTransactionDto } from './dto/create-transaction.dto';
 export class TransactionService {
   constructor(private prisma: PrismaService) {}
 
-  async createTransaction(userId: number, dto: CreateTransactionDto) {
+  async createTransaction(userId: string, dto: CreateTransactionDto) {
     // Check for duplicate idempotency key
     if (dto.idempotencyKey) {
       const existing = await this.prisma.transaction.findUnique({
@@ -62,7 +62,7 @@ export class TransactionService {
           user_id: userId,
           amount: new Decimal(dto.amount),
           type: dto.type,
-          idempotency_key: dto.idempotencyKey || null,
+          idempotency_key: dto.idempotencyKey,
         },
       });
 
@@ -70,7 +70,7 @@ export class TransactionService {
     });
   }
 
-  async getUserTransactions(userId: number) {
+  async getUserTransactions(userId: string) {
     return await this.prisma.transaction.findMany({
       where: { user_id: userId },
       orderBy: { created_at: 'desc' },

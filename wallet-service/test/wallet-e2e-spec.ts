@@ -9,15 +9,14 @@ describe('Wallet Service E2E Tests', () => {
   let app: INestApplication;
   let prisma: PrismaService;
 
-  // Test user data
-  const testUserId = 999;
+  const testUserId = 'a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d';
 
   // JWT secrets from env
   const JWT_PRIVATE_KEY = 'ILIACHALLENGE';
   const JWT_INTERNAL_KEY = 'ILIACHALLENGE_INTERNAL';
 
   // Generate external JWT (for user endpoints)
-  const generateExternalToken = (userId: number) => {
+  const generateExternalToken = (userId: string) => {
     return jwt.sign(
       { sub: userId, email: 'test@example.com' },
       JWT_PRIVATE_KEY,
@@ -26,8 +25,10 @@ describe('Wallet Service E2E Tests', () => {
   };
 
   // Generate internal JWT (for service-to-service endpoints)
-  const generateInternalToken = (userId: number) => {
-    return jwt.sign({ userId }, JWT_INTERNAL_KEY, { expiresIn: '5m' });
+  const generateInternalToken = () => {
+    return jwt.sign({ service: 'user-service' }, JWT_INTERNAL_KEY, {
+      expiresIn: '5m',
+    });
   };
 
   beforeAll(async () => {
@@ -66,7 +67,7 @@ describe('Wallet Service E2E Tests', () => {
 
   describe('POST /wallet/internal/create (Internal)', () => {
     it('should create wallet with internal JWT', async () => {
-      const internalToken = generateInternalToken(testUserId);
+      const internalToken = generateInternalToken();
 
       const response = await request(app.getHttpServer())
         .post('/wallet/internal/create')
@@ -92,7 +93,7 @@ describe('Wallet Service E2E Tests', () => {
     });
 
     it('should reject duplicate wallet creation', async () => {
-      const internalToken = generateInternalToken(testUserId);
+      const internalToken = generateInternalToken();
 
       // Create first wallet
       await request(app.getHttpServer())
@@ -110,12 +111,12 @@ describe('Wallet Service E2E Tests', () => {
     });
 
     it('should reject invalid userId', async () => {
-      const internalToken = generateInternalToken(testUserId);
+      const internalToken = generateInternalToken();
 
       await request(app.getHttpServer())
         .post('/wallet/internal/create')
         .set('Authorization', `Bearer ${internalToken}`)
-        .send({ userId: -1 }) // Negative ID
+        .send({ userId: 'not-a-valid-uuid' })
         .expect(400); // Bad Request - validation failed
     });
   });
@@ -143,17 +144,17 @@ describe('Wallet Service E2E Tests', () => {
     });
 
     it('should reject balance query without JWT', async () => {
-      await request(app.getHttpServer()).get('/wallet/balance').expect(401); // Unauthorized
+      await request(app.getHttpServer()).get('/wallet/balance').expect(401);
     });
 
     it('should return 404 if wallet does not exist', async () => {
-      const differentUserId = 888;
+      const differentUserId = 'b2c3d4e5-f6a7-4b5c-9d0e-1f2a3b4c5d6e';
       const externalToken = generateExternalToken(differentUserId);
 
       await request(app.getHttpServer())
         .get('/wallet/balance')
         .set('Authorization', `Bearer ${externalToken}`)
-        .expect(404); // Not Found
+        .expect(404);
     });
   });
 
@@ -227,11 +228,11 @@ describe('Wallet Service E2E Tests', () => {
         .post('/transactions')
         .set('Authorization', `Bearer ${externalToken}`)
         .send({
-          amount: 200, // Balance is only 100
+          amount: 200,
           type: 'DEBIT',
           idempotencyKey: 'debit-fail-001',
         })
-        .expect(400); // Bad Request
+        .expect(400);
 
       // Verify balance unchanged
       const wallet = await prisma.wallet.findUnique({
@@ -263,16 +264,16 @@ describe('Wallet Service E2E Tests', () => {
         .send({
           amount: 10,
           type: 'CREDIT',
-          idempotencyKey, // Same key!
+          idempotencyKey,
         })
-        .expect(409); // Conflict
+        .expect(409);
 
       // Verify balance only increased once
       const wallet = await prisma.wallet.findUnique({
         where: { user_id: testUserId },
       });
       expect(wallet).toBeDefined();
-      expect(Number(wallet!.balance)).toBe(110); // Not 120
+      expect(Number(wallet!.balance)).toBe(110);
     });
 
     it('should reject transaction without idempotency key', async () => {
@@ -284,9 +285,8 @@ describe('Wallet Service E2E Tests', () => {
         .send({
           amount: 50,
           type: 'CREDIT',
-          // Missing idempotencyKey
         })
-        .expect(400); // Bad Request - validation failed
+        .expect(400);
     });
 
     it('should reject negative amounts', async () => {
@@ -300,7 +300,7 @@ describe('Wallet Service E2E Tests', () => {
           type: 'CREDIT',
           idempotencyKey: 'negative-test-001',
         })
-        .expect(400); // Bad Request
+        .expect(400);
     });
 
     it('should accept idempotency key from header', async () => {
@@ -313,7 +313,7 @@ describe('Wallet Service E2E Tests', () => {
         .send({
           amount: 25,
           type: 'CREDIT',
-          idempotencyKey: 'body-key', // Body key should be overridden
+          idempotencyKey: 'body-key',
         })
         .expect(201);
 
@@ -360,12 +360,10 @@ describe('Wallet Service E2E Tests', () => {
 
       expect(response.body).toHaveLength(2);
 
-      // Verify both transactions exist (order may vary due to same timestamp)
       const types = response.body.map((t) => t.type);
       expect(types).toContain('CREDIT');
       expect(types).toContain('DEBIT');
 
-      // Verify all transactions belong to the user
       response.body.forEach((transaction) => {
         expect(transaction.userId).toBe(testUserId);
         expect(transaction.id).toBeDefined();
@@ -375,13 +373,15 @@ describe('Wallet Service E2E Tests', () => {
     });
 
     it('should only show current user transactions', async () => {
+      const otherUserId = 'c3d4e5f6-a7b8-4c5d-9e0f-1a2b3c4d5e6f';
+
       // Create transaction for different user
       await prisma.wallet.create({
-        data: { user_id: 777, balance: 50 },
+        data: { user_id: otherUserId, balance: 50 },
       });
       await prisma.transaction.create({
         data: {
-          user_id: 777,
+          user_id: otherUserId,
           amount: 10,
           type: 'CREDIT',
           idempotency_key: 'other-user-001',
@@ -395,13 +395,12 @@ describe('Wallet Service E2E Tests', () => {
         .set('Authorization', `Bearer ${externalToken}`)
         .expect(200);
 
-      // Should only see testUserId transactions
       expect(response.body).toHaveLength(2);
       expect(response.body.every((t) => t.userId === testUserId)).toBe(true);
 
       // Cleanup
-      await prisma.transaction.deleteMany({ where: { user_id: 777 } });
-      await prisma.wallet.deleteMany({ where: { user_id: 777 } });
+      await prisma.transaction.deleteMany({ where: { user_id: otherUserId } });
+      await prisma.wallet.deleteMany({ where: { user_id: otherUserId } });
     });
   });
 });
