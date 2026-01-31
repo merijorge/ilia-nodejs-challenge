@@ -3,7 +3,7 @@ CREATE TYPE "TransactionType" AS ENUM ('CREDIT', 'DEBIT');
 
 -- CreateTable
 CREATE TABLE "wallets" (
-    "user_id" INTEGER NOT NULL,
+    "user_id" TEXT NOT NULL,
     "balance" DECIMAL(10,2) NOT NULL DEFAULT 0,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
@@ -14,10 +14,10 @@ CREATE TABLE "wallets" (
 -- CreateTable
 CREATE TABLE "transactions" (
     "id" TEXT NOT NULL,
-    "user_id" INTEGER NOT NULL,
+    "user_id" TEXT NOT NULL,
     "amount" DECIMAL(10,2) NOT NULL,
     "type" "TransactionType" NOT NULL,
-    "idempotency_key" TEXT,
+    "idempotency_key" TEXT NOT NULL,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "transactions_pkey" PRIMARY KEY ("id")

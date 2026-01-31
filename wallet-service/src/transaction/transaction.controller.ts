@@ -1,7 +1,15 @@
-import { Controller, Post, Get, Body, UseGuards, Request, Headers } from '@nestjs/common';
-import { TransactionService } from './transaction.service';
-import { CreateTransactionDto } from './dto/create-transaction.dto';
+import {
+  Body,
+  Controller,
+  Get,
+  Headers,
+  Post,
+  Request,
+  UseGuards,
+} from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { CreateTransactionDto } from './dto/create-transaction.dto';
+import { TransactionService } from './transaction.service';
 
 @Controller('transactions')
 @UseGuards(JwtAuthGuard)
@@ -15,8 +23,7 @@ export class TransactionController {
     @Headers('idempotency-key') idempotencyKey?: string,
   ) {
     const userId = req.user.userId;
-    
-    // Add idempotency key from header if provided
+
     if (idempotencyKey) {
       createTransactionDto.idempotencyKey = idempotencyKey;
     }
@@ -38,7 +45,8 @@ export class TransactionController {
   @Get()
   async getTransactions(@Request() req) {
     const userId = req.user.userId;
-    const transactions = await this.transactionService.getUserTransactions(userId);
+    const transactions =
+      await this.transactionService.getUserTransactions(userId);
 
     return transactions.map((t) => ({
       id: t.id,

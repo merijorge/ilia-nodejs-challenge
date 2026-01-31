@@ -28,7 +28,7 @@ export class WalletService {
     });
   }
 
-  async getBalance(userId: number) {
+  async getBalance(userId: string) {
     const wallet = await this.prisma.wallet.findUnique({
       where: { user_id: userId },
     });
