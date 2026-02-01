@@ -16,6 +16,8 @@ This project implements a microservices architecture with two independent servic
 - **UUID Primary Keys**: Distributed system ready with UUID-based identifiers
 - **Idempotency**: Transaction deduplication using idempotency keys
 - **Transaction Rollback**: Atomic operations with automatic rollback on failure
+- **ACID Compliance**: Race condition protection and double spending prevention
+- **IDOR Prevention**: User context from JWT tokens, never from request data
 - **Comprehensive Testing**: 29/29 E2E tests passing
 - **Docker Support**: Full containerization with Docker Compose
 
@@ -41,13 +43,12 @@ This project implements a microservices architecture with two independent servic
 ### Docker (Recommended)
 
 ```bash
-git clone <your-repo-url>
+git clone https://github.com/merijorge/ilia-nodejs-challenge
 cd ilia-nodejs-challenge
 docker-compose up -d
 ```
 
 Services will be available at:
-
 - User Service: http://localhost:3002
 - Wallet Service: http://localhost:3001
 
@@ -64,23 +65,29 @@ cd wallet-service
 npm run test:e2e
 ```
 
-Expected: 16/16 tests passing
+**Expected:** 16/16 tests passing
 
 ### User Service E2E Tests
 
-**Important:** Wallet Service must be running first!
+**Important:** User Service tests require Wallet Service to be running (for wallet creation during registration).
+
+**Terminal 1 - Start Wallet Service:**
 
 ```bash
-# Terminal 1 - Start Wallet Service
 cd wallet-service
 npm run start:dev
+```
 
-# Terminal 2 - Run User Service tests
+Keep this terminal running.
+
+**Terminal 2 - Run User Service tests:**
+
+```bash
 cd user-service
 npm run test:e2e
 ```
 
-Expected: 13/13 tests passing
+**Expected:** 13/13 tests passing
 
 ## API Documentation
 
@@ -283,6 +290,7 @@ Authorization: Bearer <access_token>
 - **Input Validation**: class-validator with whitelist and transform
 - **SQL Injection Prevention**: Prisma ORM with prepared statements
 - **Service Authentication**: Internal JWT validation for service-to-service calls
+- **IDOR Prevention**: User context from JWT tokens, not request data
 
 ## Design Decisions
 
@@ -305,6 +313,58 @@ Transaction deduplication prevents duplicate charges from network retries.
 ### Transaction Rollback
 
 User deletion on wallet creation failure maintains data consistency.
+
+## Technical Implementation
+
+### Consistency & Concurrency
+
+**Race Condition Protection:** All financial operations use Prisma transactions to ensure atomicity. Balance checks and updates occur within the same transaction, preventing race conditions.
+
+**Double Spending Prevention:** Idempotency keys with unique database constraints prevent duplicate transactions. The system returns 409 Conflict for retry attempts.
+
+**ACID Compliance:** User registration demonstrates transaction rollback - if wallet creation fails, the user is deleted to maintain data consistency across services.
+
+### Performance & Scalability
+
+**Balance Storage:** Wallet balances are stored and updated incrementally using `increment`/`decrement` operations. No aggregation queries over transaction history, ensuring O(1) balance lookups.
+
+**Database Optimization:** Indexes on foreign keys (`transactions.user_id`), unique constraints on idempotency keys, and efficient Prisma queries.
+
+### Idempotency & Resilience
+
+**Duplicate Handling:** Supports idempotency keys in both headers and request body. Unique constraints prevent duplicate processing.
+
+**Network Failures:** Internal JWT tokens expire in 5 minutes. Rollback mechanisms handle partial failures, preventing orphaned records.
+
+### Microservices Architecture
+
+**Service Isolation:** Separate codebases and databases. No cross-database access. Each service owns its domain completely.
+
+**Communication:** REST/HTTP with internal JWT authentication. 5-minute token expiry with separate secret from user-facing tokens.
+
+**Responsibility Separation:**
+- **User Service:** Authentication, user management, registration
+- **Wallet Service:** Balance management, transactions, wallet operations
+
+### Security
+
+**Authentication:** All endpoints (except login/register) require JWT validation via guards. User ID extracted from token, never from request body.
+
+**IDOR Prevention:** User context comes from JWT token. All operations scoped to authenticated user. Authorization checks on every operation.
+
+**Password Security:** bcrypt with 10 salt rounds. Passwords never stored in plain text or included in responses.
+
+### Code Quality
+
+**Separation of Concerns:** Controllers (HTTP), Services (business logic), Prisma (data access), Guards (auth), DTOs (validation). Each layer has single responsibility.
+
+**Configuration:** All secrets in `.env` files. ConfigService used throughout. No hardcoded values.
+
+**Error Handling:** Try-catch blocks on critical operations. Proper HTTP status codes (401, 404, 409, 400, 500). Rollback on failure.
+
+**Transaction Lifecycle:** Prisma handles connection pooling. Transactions automatically committed or rolled back. No hanging connections.
+
+**Code Formatting:** ESLint and Prettier configured with recommended rules.
 
 ## Database Schema
 
@@ -337,6 +397,8 @@ transactions:
   type              ENUM('CREDIT', 'DEBIT')
   idempotency_key   VARCHAR UNIQUE NOT NULL
   created_at        TIMESTAMP
+
+  INDEX idx_transactions_user_id (user_id)
 ```
 
 ## Environment Variables
@@ -350,9 +412,11 @@ See `.env.example` files in each service directory.
 - Add rate limiting and refresh tokens
 - Implement email verification
 - Add wallet-to-wallet transfers
-- Implement event-driven architecture
+- Implement event-driven architecture (Kafka/RabbitMQ)
 - Add Swagger/OpenAPI documentation
-- Implement monitoring and logging
+- Implement monitoring and logging (Prometheus/Grafana)
+- Add circuit breaker pattern for resilience
+- Implement distributed tracing (Jaeger/Zipkin)
 
 ## Project Structure
 
@@ -361,23 +425,35 @@ ilia-nodejs-challenge/
 ├── docker-compose.yml
 ├── README.md
 ├── docs/
-│ ├── LOCAL_DEVELOPMENT.md # Setup guide
-│ ├── API_EXAMPLES.md # API examples & cURL commands
-│ └── challenge/ # Original challenge materials
-│ ├── Original_Challenge_README.md
-│ ├── diagram.png
-│ ├── ms-transactions.yaml
-│ └── ms-users.yaml
+│   ├── LOCAL_DEVELOPMENT.md
+│   ├── API_EXAMPLES.md
+│   └── challenge/
+│       ├── Original_Challenge_README.md
+│       ├── diagram.png
+│       ├── ms-transactions.yaml
+│       └── ms-users.yaml
 ├── wallet-service/
-│ ├── src/
-│ ├── prisma/
-│ ├── test/
-│ └── .env.example
+│   ├── src/
+│   │   ├── auth/              # JWT guards and strategies
+│   │   ├── transaction/       # Transaction handling
+│   │   ├── wallet/            # Wallet management
+│   │   └── prisma/            # Database client
+│   ├── prisma/
+│   │   ├── schema.prisma
+│   │   └── migrations/
+│   ├── test/                  # E2E tests
+│   └── .env.example
 └── user-service/
-├── src/
-├── prisma/
-├── test/
-└── .env.example
+    ├── src/
+    │   ├── auth/              # Authentication logic
+    │   ├── user/              # User management
+    │   ├── wallet-client/     # Inter-service communication
+    │   └── prisma/            # Database client
+    ├── prisma/
+    │   ├── schema.prisma
+    │   └── migrations/
+    ├── test/                  # E2E tests
+    └── .env.example
 ```
 
 ## License
