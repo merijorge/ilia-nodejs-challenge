@@ -1,5 +1,12 @@
 # Ilia Digital Wallet Challenge
 
+![CI/CD](https://github.com/merijorge/ilia-nodejs-challenge/actions/workflows/test.yml/badge.svg)
+![Tests](https://img.shields.io/badge/tests-29%20passing-brightgreen)
+![Node](https://img.shields.io/badge/node-18+-green)
+![TypeScript](https://img.shields.io/badge/typescript-5.0-blue)
+![Docker](https://img.shields.io/badge/docker-ready-blue)
+![NestJS](https://img.shields.io/badge/nestjs-10-E0234E)
+
 A microservices-based digital wallet system with user management and transaction handling, built with NestJS and PostgreSQL.
 
 ## Architecture
@@ -49,6 +56,7 @@ docker-compose up -d
 ```
 
 Services will be available at:
+
 - User Service: http://localhost:3002
 - Wallet Service: http://localhost:3001
 
@@ -343,6 +351,7 @@ User deletion on wallet creation failure maintains data consistency.
 **Communication:** REST/HTTP with internal JWT authentication. 5-minute token expiry with separate secret from user-facing tokens.
 
 **Responsibility Separation:**
+
 - **User Service:** Authentication, user management, registration
 - **Wallet Service:** Balance management, transactions, wallet operations
 
