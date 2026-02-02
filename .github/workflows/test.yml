@@ -1,0 +1,182 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test-wallet-service:
+    name: Wallet Service Tests
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: wallet_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+          cache: "npm"
+          cache-dependency-path: wallet-service/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./wallet-service
+        run: npm ci
+
+      - name: Generate Prisma Client
+        working-directory: ./wallet-service
+        run: npx prisma generate
+
+      - name: Run migrations
+        working-directory: ./wallet-service
+        run: npx prisma migrate deploy
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/wallet_db
+
+      - name: Run E2E tests
+        working-directory: ./wallet-service
+        run: npm run test:e2e
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/wallet_db
+          JWT_PRIVATE_KEY: ILIACHALLENGE
+          JWT_INTERNAL_KEY: ILIACHALLENGE_INTERNAL
+          PORT: 3001
+
+  test-user-service:
+    name: User Service Tests
+    runs-on: ubuntu-latest
+    needs: test-wallet-service
+
+    services:
+      postgres-user:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: user_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5433:5432
+
+      postgres-wallet:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: wallet_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+          cache: "npm"
+          cache-dependency-path: |
+            wallet-service/package-lock.json
+            user-service/package-lock.json
+
+      # Setup Wallet Service first
+      - name: Install Wallet Service dependencies
+        working-directory: ./wallet-service
+        run: npm ci
+
+      - name: Generate Wallet Prisma Client
+        working-directory: ./wallet-service
+        run: npx prisma generate
+
+      - name: Run Wallet migrations
+        working-directory: ./wallet-service
+        run: npx prisma migrate deploy
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/wallet_db
+
+      - name: Build Wallet Service
+        working-directory: ./wallet-service
+        run: npm run build
+
+      - name: Start Wallet Service in background
+        working-directory: ./wallet-service
+        run: |
+          nohup node dist/main.js > wallet.log 2>&1 &
+          echo $! > wallet.pid
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/wallet_db
+          JWT_PRIVATE_KEY: ILIACHALLENGE
+          JWT_INTERNAL_KEY: ILIACHALLENGE_INTERNAL
+          PORT: 3001
+
+      - name: Wait for Wallet Service to be ready
+        run: |
+          echo "Waiting for Wallet Service..."
+          for i in {1..30}; do
+            if curl -f http://localhost:3001 > /dev/null 2>&1; then
+              echo "Wallet Service is up!"
+              exit 0
+            fi
+            echo "Attempt $i/30 - Wallet Service not ready yet..."
+            sleep 2
+          done
+          echo "Wallet Service failed to start!"
+          cat wallet-service/wallet.log
+          exit 1
+
+      # Now setup User Service
+      - name: Install User Service dependencies
+        working-directory: ./user-service
+        run: npm ci
+
+      - name: Generate User Prisma Client
+        working-directory: ./user-service
+        run: npx prisma generate
+
+      - name: Run User migrations
+        working-directory: ./user-service
+        run: npx prisma migrate deploy
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5433/user_db
+
+      - name: Run User Service E2E tests
+        working-directory: ./user-service
+        run: npm run test:e2e
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5433/user_db
+          JWT_PRIVATE_KEY: ILIACHALLENGE
+          JWT_INTERNAL_KEY: ILIACHALLENGE_INTERNAL
+          WALLET_SERVICE_URL: http://localhost:3001
+          PORT: 3002
+
+      - name: Show Wallet Service logs if tests fail
+        if: failure()
+        run: cat wallet-service/wallet.log
