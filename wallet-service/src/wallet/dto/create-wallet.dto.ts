@@ -1,7 +1,7 @@
 import { IsNotEmpty, IsUUID } from 'class-validator';
 
 export class CreateWalletDto {
-  @IsUUID()
+  @IsUUID('4', { message: 'User ID must be a valid UUID v4' })
   @IsNotEmpty()
   userId: string;
 }
