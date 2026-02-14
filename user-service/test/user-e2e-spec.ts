@@ -30,6 +30,8 @@ describe('User Service (e2e)', () => {
   });
 
   afterAll(async () => {
+    // Clean up all test data before closing
+    await prisma.user.deleteMany();
     await prisma.$disconnect();
     await app.close();
   });
@@ -46,7 +48,7 @@ describe('User Service (e2e)', () => {
           .post('/auth/register')
           .send({
             email: 'test@example.com',
-            password: 'password123',
+            password: 'Password123',
             first_name: 'John',
             last_name: 'Doe',
           })
@@ -68,7 +70,7 @@ describe('User Service (e2e)', () => {
           .post('/auth/register')
           .send({
             email: 'duplicate@example.com',
-            password: 'password123',
+            password: 'Password123',
             first_name: 'Jane',
             last_name: 'Doe',
           })
@@ -78,7 +80,7 @@ describe('User Service (e2e)', () => {
           .post('/auth/register')
           .send({
             email: 'duplicate@example.com',
-            password: 'password456',
+            password: 'Password456',
             first_name: 'John',
             last_name: 'Smith',
           })
@@ -90,7 +92,7 @@ describe('User Service (e2e)', () => {
           .post('/auth/register')
           .send({
             email: 'invalid-email',
-            password: 'password123',
+            password: 'Password123',
             first_name: 'John',
             last_name: 'Doe',
           })
@@ -114,7 +116,7 @@ describe('User Service (e2e)', () => {
       beforeEach(async () => {
         await request(app.getHttpServer()).post('/auth/register').send({
           email: 'login@example.com',
-          password: 'password123',
+          password: 'Password123',
           first_name: 'Login',
           last_name: 'User',
         });
@@ -125,7 +127,7 @@ describe('User Service (e2e)', () => {
           .post('/auth/login')
           .send({
             email: 'login@example.com',
-            password: 'password123',
+            password: 'Password123',
           })
           .expect(200);
 
@@ -142,7 +144,7 @@ describe('User Service (e2e)', () => {
           .post('/auth/login')
           .send({
             email: 'wrong@example.com',
-            password: 'password123',
+            password: 'Password123',
           })
           .expect(401);
       });
@@ -165,7 +167,7 @@ describe('User Service (e2e)', () => {
         .post('/auth/register')
         .send({
           email: 'profile@example.com',
-          password: 'password123',
+          password: 'Password123',
           first_name: 'Profile',
           last_name: 'User',
         });

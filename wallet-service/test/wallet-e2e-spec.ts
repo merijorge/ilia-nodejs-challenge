@@ -56,6 +56,7 @@ describe('Wallet Service E2E Tests', () => {
     // Cleanup test data
     await prisma.transaction.deleteMany({ where: { user_id: testUserId } });
     await prisma.wallet.deleteMany({ where: { user_id: testUserId } });
+    await prisma.$disconnect();
     await app.close();
   });
 
@@ -175,7 +176,7 @@ describe('Wallet Service E2E Tests', () => {
         .send({
           amount: 50,
           type: 'CREDIT',
-          idempotencyKey: 'credit-test-001',
+          idempotencyKey: 'a1a1a1a1-b2b2-4c3c-8d4d-e5e5e5e5e501',
         })
         .expect(201);
 
@@ -203,7 +204,7 @@ describe('Wallet Service E2E Tests', () => {
         .send({
           amount: 30,
           type: 'DEBIT',
-          idempotencyKey: 'debit-test-001',
+          idempotencyKey: 'a1a1a1a1-b2b2-4c3c-8d4d-e5e5e5e5e502',
         })
         .expect(201);
 
@@ -230,7 +231,7 @@ describe('Wallet Service E2E Tests', () => {
         .send({
           amount: 200,
           type: 'DEBIT',
-          idempotencyKey: 'debit-fail-001',
+          idempotencyKey: 'a1a1a1a1-b2b2-4c3c-8d4d-e5e5e5e5e503',
         })
         .expect(400);
 
@@ -244,7 +245,7 @@ describe('Wallet Service E2E Tests', () => {
 
     it('should reject duplicate idempotency key', async () => {
       const externalToken = generateExternalToken(testUserId);
-      const idempotencyKey = 'duplicate-test-001';
+      const idempotencyKey = 'a1a1a1a1-b2b2-4c3c-8d4d-e5e5e5e5e504';
 
       // First transaction
       await request(app.getHttpServer())
@@ -298,7 +299,7 @@ describe('Wallet Service E2E Tests', () => {
         .send({
           amount: -50,
           type: 'CREDIT',
-          idempotencyKey: 'negative-test-001',
+          idempotencyKey: 'a1a1a1a1-b2b2-4c3c-8d4d-e5e5e5e5e505',
         })
         .expect(400);
     });
@@ -309,17 +310,17 @@ describe('Wallet Service E2E Tests', () => {
       const response = await request(app.getHttpServer())
         .post('/transactions')
         .set('Authorization', `Bearer ${externalToken}`)
-        .set('Idempotency-Key', 'header-test-001')
+        .set('Idempotency-Key', 'a1a1a1a1-b2b2-4c3c-8d4d-e5e5e5e5e506')
         .send({
           amount: 25,
           type: 'CREDIT',
-          idempotencyKey: 'body-key',
+          idempotencyKey: 'a1a1a1a1-b2b2-4c3c-8d4d-e5e5e5e5e507',
         })
         .expect(201);
 
       // Verify the header key was used
       const transaction = await prisma.transaction.findUnique({
-        where: { idempotency_key: 'header-test-001' },
+        where: { idempotency_key: 'a1a1a1a1-b2b2-4c3c-8d4d-e5e5e5e5e506' },
       });
       expect(transaction).toBeDefined();
     });
@@ -338,13 +339,13 @@ describe('Wallet Service E2E Tests', () => {
             user_id: testUserId,
             amount: 50,
             type: 'CREDIT',
-            idempotency_key: 'history-001',
+            idempotency_key: 'a1a1a1a1-b2b2-4c3c-8d4d-e5e5e5e5e508',
           },
           {
             user_id: testUserId,
             amount: 30,
             type: 'DEBIT',
-            idempotency_key: 'history-002',
+            idempotency_key: 'a1a1a1a1-b2b2-4c3c-8d4d-e5e5e5e5e509',
           },
         ],
       });
@@ -384,7 +385,7 @@ describe('Wallet Service E2E Tests', () => {
           user_id: otherUserId,
           amount: 10,
           type: 'CREDIT',
-          idempotency_key: 'other-user-001',
+          idempotency_key: 'a1a1a1a1-b2b2-4c3c-8d4d-e5e5e5e5e510',
         },
       });
 
