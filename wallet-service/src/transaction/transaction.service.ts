@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { TransactionType } from '@prisma/client';
@@ -11,6 +12,8 @@ import { CreateTransactionDto } from './dto/create-transaction.dto';
 
 @Injectable()
 export class TransactionService {
+  private readonly logger = new Logger(TransactionService.name);
+
   constructor(private prisma: PrismaService) {}
 
   async createTransaction(userId: string, dto: CreateTransactionDto) {
@@ -21,12 +24,17 @@ export class TransactionService {
       });
 
       if (existing) {
+        this.logger.warn(
+          `Duplicate transaction attempt: idempotency_key=${dto.idempotencyKey}`,
+        );
         throw new ConflictException('Duplicate transaction detected');
       }
     }
 
+    const startTime = Date.now();
+
     // Execute transaction in database transaction
-    return await this.prisma.$transaction(async (prisma) => {
+    const result = await this.prisma.$transaction(async (prisma) => {
       // Get wallet with lock
       const wallet = await prisma.wallet.findUnique({
         where: { user_id: userId },
@@ -36,10 +44,14 @@ export class TransactionService {
         throw new NotFoundException('Wallet not found');
       }
 
+      const previousBalance = Number(wallet.balance);
+
       // Check balance for debit
       if (dto.type === TransactionType.DEBIT) {
-        const currentBalance = Number(wallet.balance);
-        if (currentBalance < dto.amount) {
+        if (previousBalance < dto.amount) {
+          this.logger.warn(
+            `Insufficient funds: user=${userId}, balance=${previousBalance}, attempted=${dto.amount}`,
+          );
           throw new BadRequestException('Insufficient funds');
         }
 
@@ -66,14 +78,39 @@ export class TransactionService {
         },
       });
 
+      const newBalance =
+        dto.type === TransactionType.CREDIT
+          ? previousBalance + dto.amount
+          : previousBalance - dto.amount;
+
+      this.logger.log(
+        `Transaction created: type=${dto.type}, amount=${dto.amount}, user=${userId}, balance=${previousBalance}→${newBalance.toFixed(2)}`,
+      );
+
       return transaction;
     });
+
+    const duration = Date.now() - startTime;
+    this.logger.debug(
+      `Transaction completed in ${duration}ms (O(1) operation)`,
+    );
+
+    return result;
   }
 
   async getUserTransactions(userId: string) {
-    return await this.prisma.transaction.findMany({
+    const startTime = Date.now();
+
+    const transactions = await this.prisma.transaction.findMany({
       where: { user_id: userId },
       orderBy: { created_at: 'desc' },
     });
+
+    const duration = Date.now() - startTime;
+    this.logger.debug(
+      `Retrieved ${transactions.length} transactions in ${duration}ms (O(N) operation)`,
+    );
+
+    return transactions;
   }
 }

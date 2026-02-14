@@ -43,10 +43,4 @@ export class WalletController {
     return await this.walletService.verifyBalanceIntegrity(userId);
   }
 
-  @Post('reconcile')
-  @UseGuards(JwtAuthGuard)
-  async reconcileBalance(@Request() req) {
-    const userId = req.user.userId;
-    return await this.walletService.reconcileBalance(userId);
-  }
 }

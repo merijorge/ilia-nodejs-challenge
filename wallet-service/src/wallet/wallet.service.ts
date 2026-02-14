@@ -94,36 +94,4 @@ export class WalletService {
       discrepancy: Math.round(discrepancy * 100) / 100,
     };
   }
-
-  async reconcileBalance(userId: string): Promise<{
-    previousBalance: number;
-    correctedBalance: number;
-    wasInconsistent: boolean;
-  }> {
-    const verification = await this.verifyBalanceIntegrity(userId);
-
-    if (verification.isConsistent) {
-      return {
-        previousBalance: verification.storedBalance,
-        correctedBalance: verification.storedBalance,
-        wasInconsistent: false,
-      };
-    }
-
-    // Update balance to match calculated value
-    await this.prisma.wallet.update({
-      where: { user_id: userId },
-      data: { balance: verification.calculatedBalance },
-    });
-
-    this.logger.log(
-      `Balance reconciled for user ${userId}: ${verification.storedBalance} → ${verification.calculatedBalance}`,
-    );
-
-    return {
-      previousBalance: verification.storedBalance,
-      correctedBalance: verification.calculatedBalance,
-      wasInconsistent: true,
-    };
-  }
 }
