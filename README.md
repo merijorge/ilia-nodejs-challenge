@@ -382,7 +382,7 @@ Authorization: Bearer <access_token>
 - **SQL Injection Prevention**: Prisma ORM with prepared statements
 - **Service Authentication**: Internal JWT validation for service-to-service calls
 - **IDOR Prevention**: User context from JWT tokens, not request data
-
+- **Input Validation & Sanitization**: Comprehensive validation with length limits, format checks, XSS prevention, and automatic sanitization. See [docs/VALIDATION.md](docs/VALIDATION.md) for complete rules.
 
 ## Design Decisions
 
