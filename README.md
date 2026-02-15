@@ -352,9 +352,13 @@ For detailed performance analysis, test results, and scalability design, see **[
 
 ### Idempotency & Resilience
 
-**Duplicate Handling:** Supports idempotency keys in both headers and request body. Unique constraints prevent duplicate processing.
+**True Idempotency Pattern:** Transaction creation returns identical responses (201 + same transaction) for duplicate requests. Duplicate detection is atomic at database level via unique constraint, eliminating race conditions. Concurrent duplicate requests all receive the same transaction.
+
+**Duplicate Handling:** Idempotency keys supported in both headers and request body. Database unique constraints prevent duplicate processing.
 
 **Network Failures:** Internal JWT tokens expire in 5 minutes. Rollback mechanisms handle partial failures, preventing orphaned records.
+
+For implementation details, client usage examples, and concurrency testing results, see **[docs/IDEMPOTENCY.md](docs/IDEMPOTENCY.md)**.
 
 ### Microservices Architecture
 
