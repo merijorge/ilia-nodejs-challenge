@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  Param,
   Post,
   Request,
   UseGuards,
@@ -15,7 +16,6 @@ import { WalletService } from './wallet.service';
 export class WalletController {
   constructor(private readonly walletService: WalletService) {}
 
-  // Internal route - called by User Service
   @Post('internal/create')
   @UseGuards(InternalJwtGuard)
   async createWallet(@Body() createWalletDto: CreateWalletDto) {
@@ -29,11 +29,18 @@ export class WalletController {
     };
   }
 
-  // External route - called by users
   @Get('balance')
   @UseGuards(JwtAuthGuard)
   async getBalance(@Request() req) {
     const userId = req.user.userId;
     return await this.walletService.getBalance(userId);
   }
+
+  @Get('verify')
+  @UseGuards(JwtAuthGuard)
+  async verifyBalance(@Request() req) {
+    const userId = req.user.userId;
+    return await this.walletService.verifyBalanceIntegrity(userId);
+  }
+
 }
