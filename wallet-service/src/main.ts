@@ -19,10 +19,38 @@ async function bootstrap() {
     }),
   );
 
+  // Enable graceful shutdown
+  app.enableShutdownHooks();
+
   const port = process.env.PORT || 3001;
   await app.listen(port);
 
   logger.log(`🚀 Wallet Service running on port ${port}`);
+
+  // Graceful shutdown handlers
+  process.on('SIGTERM', async () => {
+    logger.log('SIGTERM signal received: closing HTTP server');
+    await app.close();
+    logger.log('HTTP server closed');
+    process.exit(0);
+  });
+
+  process.on('SIGINT', async () => {
+    logger.log('SIGINT signal received: closing HTTP server');
+    await app.close();
+    logger.log('HTTP server closed');
+    process.exit(0);
+  });
+
+  process.on('uncaughtException', (error) => {
+    logger.error('Uncaught Exception:', error.stack);
+    process.exit(1);
+  });
+
+  process.on('unhandledRejection', (reason, promise) => {
+    logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
+    process.exit(1);
+  });
 }
 
 bootstrap();
