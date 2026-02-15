@@ -1,11 +1,12 @@
 import { HttpService } from '@nestjs/axios';
-import { HttpException, Injectable } from '@nestjs/common';
+import { HttpException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { firstValueFrom } from 'rxjs';
 
 @Injectable()
 export class WalletClientService {
+  private readonly logger = new Logger(WalletClientService.name);
   private walletServiceUrl: string;
   private internalJwtSecret: string;
 
@@ -39,6 +40,8 @@ export class WalletClientService {
   async createWallet(userId: string): Promise<any> {
     const token = this.generateInternalToken();
 
+    this.logger.debug(`Creating wallet for user: id=${userId}`);
+
     try {
       const response = await firstValueFrom(
         this.httpService.post(
@@ -53,10 +56,23 @@ export class WalletClientService {
         ),
       );
 
+      this.logger.log(`Wallet created successfully: userId=${userId}`);
       return response.data;
     } catch (error) {
-      console.error('Wallet Service Error:', error.response?.data);
-      throw new HttpException(error.response?.data, error.response?.status);
+      this.logger.error(
+        `Wallet creation failed: userId=${userId}, error=${error.message}`,
+        error.stack,
+      );
+
+      if (error.response) {
+        this.logger.error(
+          `Wallet service responded with error: status=${error.response.status}, data=${JSON.stringify(error.response.data)}`,
+        );
+        throw new HttpException(error.response.data, error.response.status);
+      }
+
+      // Network error (service down, timeout, etc)
+      throw new HttpException('Wallet service unavailable', 503);
     }
   }
 }
