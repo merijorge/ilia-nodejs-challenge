@@ -1,6 +1,5 @@
 import {
   BadRequestException,
-  ConflictException,
   Injectable,
   Logger,
   NotFoundException,
@@ -73,7 +72,6 @@ export class TransactionService {
         this.logger.log(
           `Transaction created: type=${dto.type}, amount=${dto.amount}, user=${userId}, balance=${previousBalance}→${newBalance.toFixed(2)}`,
         );
-
         return transaction;
       });
 
@@ -89,10 +87,28 @@ export class TransactionService {
         error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === 'P2002'
       ) {
-        this.logger.warn(
-          `Duplicate transaction attempt: idempotency_key=${dto.idempotencyKey}`,
+        this.logger.log(
+          `Idempotent request: returning existing transaction for idempotency_key=${dto.idempotencyKey}`,
         );
-        throw new ConflictException('Duplicate transaction detected');
+
+        // True idempotency: Return existing transaction instead of error
+        const existingTransaction = await this.prisma.transaction.findUnique({
+          where: { idempotency_key: dto.idempotencyKey },
+        });
+
+        if (existingTransaction) {
+          const duration = Date.now() - startTime;
+          this.logger.debug(`Idempotent response returned in ${duration}ms`);
+          return existingTransaction;
+        }
+
+        // Fallback (should never happen, but for safety)
+        this.logger.error(
+          `P2002 error but transaction not found: idempotency_key=${dto.idempotencyKey}`,
+        );
+        throw new BadRequestException(
+          'Transaction conflict - please retry with a new idempotency key',
+        );
       }
 
       // Re-throw other errors
