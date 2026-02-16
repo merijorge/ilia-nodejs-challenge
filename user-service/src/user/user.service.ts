@@ -5,10 +5,10 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
-import { RegisterDto } from '../dto/register.dto';
-import { UpdateUserDto } from '../dto/update-user.dto';
+import { RegisterDto } from '../auth/dto/register.dto';
 import { PrismaService } from '../prisma/prisma.service';
 import { WalletClientService } from '../wallet-client/wallet-client.service';
+import { UpdateUserDto } from './dto/update-user.dto';
 
 @Injectable()
 export class UserService {
