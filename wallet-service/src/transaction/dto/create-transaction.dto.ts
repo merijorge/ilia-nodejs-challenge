@@ -41,17 +41,17 @@ function IsDecimal(decimals: number, validationOptions?: ValidationOptions) {
 
 export class CreateTransactionDto {
   @IsNumber({}, { message: 'Amount must be a number' })
+  @IsNotEmpty({ message: 'Amount is required' })
   @Min(0.01, { message: 'Amount must be at least 0.01' })
   @Max(1000000, { message: 'Amount cannot exceed 1,000,000' })
   @IsDecimal(2, { message: 'Amount must have at most 2 decimal places' })
-  @IsNotEmpty()
   amount: number;
 
   @IsEnum(TransactionType, { message: 'Type must be either CREDIT or DEBIT' })
-  @IsNotEmpty()
+  @IsNotEmpty({ message: 'Transaction type is required' })
   type: TransactionType;
 
   @IsUUID('4', { message: 'Idempotency key must be a valid UUID v4' })
-  @IsNotEmpty()
+  @IsNotEmpty({ message: 'Idempotency key is required' })
   idempotencyKey: string;
 }

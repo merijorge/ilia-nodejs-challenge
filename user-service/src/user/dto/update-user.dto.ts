@@ -2,7 +2,7 @@ import { Transform } from 'class-transformer';
 import { IsOptional, IsString, Length, Matches } from 'class-validator';
 
 export class UpdateUserDto {
-  @IsString()
+  @IsString({ message: 'First name must be a string' })
   @IsOptional()
   @Length(1, 100, {
     message: 'First name must be between 1 and 100 characters',
@@ -14,7 +14,7 @@ export class UpdateUserDto {
   @Transform(({ value }) => value?.trim())
   first_name?: string;
 
-  @IsString()
+  @IsString({ message: 'Last name must be a string' })
   @IsOptional()
   @Length(1, 100, { message: 'Last name must be between 1 and 100 characters' })
   @Matches(/^[a-zA-ZÀ-ÿ\s'-]+$/, {
