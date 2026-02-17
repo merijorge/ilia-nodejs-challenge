@@ -3,7 +3,6 @@ import {
   IsEnum,
   IsNotEmpty,
   IsNumber,
-  IsUUID,
   Max,
   Min,
   ValidationArguments,
@@ -50,8 +49,4 @@ export class CreateTransactionDto {
   @IsEnum(TransactionType, { message: 'Type must be either CREDIT or DEBIT' })
   @IsNotEmpty({ message: 'Transaction type is required' })
   type: TransactionType;
-
-  @IsUUID('4', { message: 'Idempotency key must be a valid UUID v4' })
-  @IsNotEmpty({ message: 'Idempotency key is required' })
-  idempotencyKey: string;
 }

@@ -90,7 +90,7 @@ describe('Wallet Service E2E Tests', () => {
         .post('/wallet/internal/create')
         .set('Authorization', `Bearer ${externalToken}`)
         .send({ userId: testUserId })
-        .expect(401); // Unauthorized - wrong JWT type
+        .expect(401);
     });
 
     it('should reject duplicate wallet creation', async () => {
@@ -103,12 +103,12 @@ describe('Wallet Service E2E Tests', () => {
         .send({ userId: testUserId })
         .expect(201);
 
-      // Try to create again
+      // Try to create again - should return 409 Conflict
       await request(app.getHttpServer())
         .post('/wallet/internal/create')
         .set('Authorization', `Bearer ${internalToken}`)
         .send({ userId: testUserId })
-        .expect(409); // Conflict
+        .expect(409);
     });
 
     it('should reject invalid userId', async () => {
@@ -118,7 +118,7 @@ describe('Wallet Service E2E Tests', () => {
         .post('/wallet/internal/create')
         .set('Authorization', `Bearer ${internalToken}`)
         .send({ userId: 'not-a-valid-uuid' })
-        .expect(400); // Bad Request - validation failed
+        .expect(400);
     });
   });
 
@@ -173,10 +173,10 @@ describe('Wallet Service E2E Tests', () => {
       const response = await request(app.getHttpServer())
         .post('/transactions')
         .set('Authorization', `Bearer ${externalToken}`)
+        .set('idempotency-key', 'a1a1a1a1-b2b2-4c3c-8d4d-e5e5e5e5e501')
         .send({
           amount: 50,
           type: 'CREDIT',
-          idempotencyKey: 'a1a1a1a1-b2b2-4c3c-8d4d-e5e5e5e5e501',
         })
         .expect(201);
 
@@ -201,10 +201,10 @@ describe('Wallet Service E2E Tests', () => {
       const response = await request(app.getHttpServer())
         .post('/transactions')
         .set('Authorization', `Bearer ${externalToken}`)
+        .set('idempotency-key', 'a1a1a1a1-b2b2-4c3c-8d4d-e5e5e5e5e502')
         .send({
           amount: 30,
           type: 'DEBIT',
-          idempotencyKey: 'a1a1a1a1-b2b2-4c3c-8d4d-e5e5e5e5e502',
         })
         .expect(201);
 
@@ -228,10 +228,10 @@ describe('Wallet Service E2E Tests', () => {
       await request(app.getHttpServer())
         .post('/transactions')
         .set('Authorization', `Bearer ${externalToken}`)
+        .set('idempotency-key', 'a1a1a1a1-b2b2-4c3c-8d4d-e5e5e5e5e503')
         .send({
           amount: 200,
           type: 'DEBIT',
-          idempotencyKey: 'a1a1a1a1-b2b2-4c3c-8d4d-e5e5e5e5e503',
         })
         .expect(400);
 
@@ -243,44 +243,61 @@ describe('Wallet Service E2E Tests', () => {
       expect(Number(wallet!.balance)).toBe(100);
     });
 
-    it('should reject duplicate idempotency key', async () => {
+    it('should return same transaction for duplicate idempotency key (true idempotency)', async () => {
       const externalToken = generateExternalToken(testUserId);
       const idempotencyKey = 'a1a1a1a1-b2b2-4c3c-8d4d-e5e5e5e5e504';
 
       // First transaction
-      await request(app.getHttpServer())
+      const firstResponse = await request(app.getHttpServer())
         .post('/transactions')
         .set('Authorization', `Bearer ${externalToken}`)
+        .set('idempotency-key', idempotencyKey)
         .send({
           amount: 10,
           type: 'CREDIT',
-          idempotencyKey,
         })
         .expect(201);
 
-      // Second transaction with same key
-      await request(app.getHttpServer())
+      const firstTransactionId = firstResponse.body.id;
+
+      // Second transaction with same key, should return 201 with SAME transaction
+      const secondResponse = await request(app.getHttpServer())
         .post('/transactions')
         .set('Authorization', `Bearer ${externalToken}`)
+        .set('idempotency-key', idempotencyKey)
         .send({
           amount: 10,
           type: 'CREDIT',
-          idempotencyKey,
         })
-        .expect(409);
+        .expect(201);
 
-      // Verify balance only increased once
+      // Verify it's the same transaction (same ID)
+      expect(secondResponse.body.id).toBe(firstTransactionId);
+      expect(secondResponse.body.amount).toBe(10);
+      expect(secondResponse.body.type).toBe('CREDIT');
+
+      // Verify balance only increased once (100 + 10 = 110, not 120)
       const wallet = await prisma.wallet.findUnique({
         where: { user_id: testUserId },
       });
       expect(wallet).toBeDefined();
       expect(Number(wallet!.balance)).toBe(110);
+
+      // Verify only ONE transaction exists in database
+      const transactions = await prisma.transaction.findMany({
+        where: {
+          user_id: testUserId,
+          idempotency_key: idempotencyKey,
+        },
+      });
+      expect(transactions.length).toBe(1);
+      expect(transactions[0].id).toBe(firstTransactionId);
     });
 
-    it('should reject transaction without idempotency key', async () => {
+    it('should reject transaction without idempotency key header', async () => {
       const externalToken = generateExternalToken(testUserId);
 
-      await request(app.getHttpServer())
+      const response = await request(app.getHttpServer())
         .post('/transactions')
         .set('Authorization', `Bearer ${externalToken}`)
         .send({
@@ -288,6 +305,8 @@ describe('Wallet Service E2E Tests', () => {
           type: 'CREDIT',
         })
         .expect(400);
+
+      expect(response.body.message).toBe('Idempotency-Key header is required');
     });
 
     it('should reject negative amounts', async () => {
@@ -296,33 +315,59 @@ describe('Wallet Service E2E Tests', () => {
       await request(app.getHttpServer())
         .post('/transactions')
         .set('Authorization', `Bearer ${externalToken}`)
+        .set('idempotency-key', 'a1a1a1a1-b2b2-4c3c-8d4d-e5e5e5e5e505')
         .send({
           amount: -50,
           type: 'CREDIT',
-          idempotencyKey: 'a1a1a1a1-b2b2-4c3c-8d4d-e5e5e5e5e505',
         })
         .expect(400);
     });
 
-    it('should accept idempotency key from header', async () => {
-      const externalToken = generateExternalToken(testUserId);
+    it('should reject idempotency key in request body (header-only)', async () => {
+      const token = generateExternalToken(testUserId);
+      const headerKey = 'a1a1a1a1-b2b2-4c3c-8d4d-e5e5e5e5e506';
 
       const response = await request(app.getHttpServer())
         .post('/transactions')
-        .set('Authorization', `Bearer ${externalToken}`)
-        .set('Idempotency-Key', 'a1a1a1a1-b2b2-4c3c-8d4d-e5e5e5e5e506')
+        .set('Authorization', `Bearer ${token}`)
+        .set('idempotency-key', headerKey)
         .send({
-          amount: 25,
+          amount: 100,
           type: 'CREDIT',
-          idempotencyKey: 'a1a1a1a1-b2b2-4c3c-8d4d-e5e5e5e5e507',
+          idempotencyKey: 'b2b2b2b2-c3c3-4d4d-8e5e-f6f6f6f6f607',
         })
-        .expect(201);
+        .expect(400);
 
-      // Verify the header key was used
+      const messageStr = JSON.stringify(response.body.message);
+      expect(messageStr).toContain('idempotencyKey');
+      expect(messageStr).toContain('should not exist');
+    });
+
+    it('should reject transaction when wallet does not exist (404)', async () => {
+      const nonExistentUserId = 'd4e5f6a7-b8c9-4d5e-0f1a-2b3c4d5e6f7a';
+      const externalToken = generateExternalToken(nonExistentUserId);
+      const idempotencyKey = 'a1a1a1a1-b2b2-4c3c-8d4d-e5e5e5e5e510';
+
+      await request(app.getHttpServer())
+        .post('/transactions')
+        .set('Authorization', `Bearer ${externalToken}`)
+        .set('idempotency-key', idempotencyKey)
+        .send({
+          amount: 50,
+          type: 'CREDIT',
+        })
+        .expect(404);
+
+      // Verify no orphaned transaction was created (query by composite key)
       const transaction = await prisma.transaction.findUnique({
-        where: { idempotency_key: 'a1a1a1a1-b2b2-4c3c-8d4d-e5e5e5e5e506' },
+        where: {
+          user_id_idempotency_key: {
+            user_id: nonExistentUserId,
+            idempotency_key: idempotencyKey,
+          },
+        },
       });
-      expect(transaction).toBeDefined();
+      expect(transaction).toBeNull();
     });
   });
 
@@ -385,7 +430,7 @@ describe('Wallet Service E2E Tests', () => {
           user_id: otherUserId,
           amount: 10,
           type: 'CREDIT',
-          idempotency_key: 'a1a1a1a1-b2b2-4c3c-8d4d-e5e5e5e5e510',
+          idempotency_key: 'a1a1a1a1-b2b2-4c3c-8d4d-e5e5e5e5e511',
         },
       });
 

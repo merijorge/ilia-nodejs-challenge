@@ -59,10 +59,10 @@ describe('Wallet Validation (e2e)', () => {
       await request(app.getHttpServer())
         .post('/transactions')
         .set('Authorization', `Bearer ${authToken}`)
+        .set('idempotency-key', '660e8400-e29b-41d4-a716-446655440001')
         .send({
           amount: 100.123,
           type: 'CREDIT',
-          idempotencyKey: '660e8400-e29b-41d4-a716-446655440001',
         })
         .expect(400);
     });
@@ -71,10 +71,10 @@ describe('Wallet Validation (e2e)', () => {
       await request(app.getHttpServer())
         .post('/transactions')
         .set('Authorization', `Bearer ${authToken}`)
+        .set('idempotency-key', '660e8400-e29b-41d4-a716-446655440002')
         .send({
           amount: -50,
           type: 'CREDIT',
-          idempotencyKey: '660e8400-e29b-41d4-a716-446655440002',
         })
         .expect(400);
     });
@@ -83,10 +83,10 @@ describe('Wallet Validation (e2e)', () => {
       await request(app.getHttpServer())
         .post('/transactions')
         .set('Authorization', `Bearer ${authToken}`)
+        .set('idempotency-key', '660e8400-e29b-41d4-a716-446655440003')
         .send({
           amount: 0,
           type: 'CREDIT',
-          idempotencyKey: '660e8400-e29b-41d4-a716-446655440003',
         })
         .expect(400);
     });
@@ -95,10 +95,10 @@ describe('Wallet Validation (e2e)', () => {
       await request(app.getHttpServer())
         .post('/transactions')
         .set('Authorization', `Bearer ${authToken}`)
+        .set('idempotency-key', '660e8400-e29b-41d4-a716-446655440004')
         .send({
           amount: 1000001,
           type: 'CREDIT',
-          idempotencyKey: '660e8400-e29b-41d4-a716-446655440004',
         })
         .expect(400);
     });
@@ -107,47 +107,85 @@ describe('Wallet Validation (e2e)', () => {
       await request(app.getHttpServer())
         .post('/transactions')
         .set('Authorization', `Bearer ${authToken}`)
+        .set('idempotency-key', '660e8400-e29b-41d4-a716-446655440005')
         .send({
           amount: 100,
           type: 'INVALID_TYPE',
-          idempotencyKey: '660e8400-e29b-41d4-a716-446655440005',
         })
         .expect(400);
     });
 
-    it('should reject invalid idempotency key format', async () => {
-      await request(app.getHttpServer())
+    it('should reject invalid idempotency key format in header', async () => {
+      const response = await request(app.getHttpServer())
+        .post('/transactions')
+        .set('Authorization', `Bearer ${authToken}`)
+        .set('idempotency-key', 'not-a-uuid')
+        .send({
+          amount: 100,
+          type: 'CREDIT',
+        })
+        .expect(400);
+
+      expect(response.body.message).toBe(
+        'Idempotency-Key must be a valid UUID v4',
+      );
+    });
+
+    it('should reject missing idempotency key header', async () => {
+      const response = await request(app.getHttpServer())
         .post('/transactions')
         .set('Authorization', `Bearer ${authToken}`)
         .send({
           amount: 100,
           type: 'CREDIT',
-          idempotencyKey: 'not-a-uuid',
         })
         .expect(400);
+
+      expect(response.body.message).toBe('Idempotency-Key header is required');
     });
 
-    it('should reject unknown properties', async () => {
-      await request(app.getHttpServer())
+    it('should reject unknown properties in body', async () => {
+      const response = await request(app.getHttpServer())
         .post('/transactions')
         .set('Authorization', `Bearer ${authToken}`)
+        .set('idempotency-key', '660e8400-e29b-41d4-a716-446655440006')
         .send({
           amount: 100,
           type: 'CREDIT',
-          idempotencyKey: '660e8400-e29b-41d4-a716-446655440006',
           malicious_field: 'hack',
         })
         .expect(400);
+
+      const messageStr = JSON.stringify(response.body.message);
+      expect(messageStr).toContain('malicious_field');
+      expect(messageStr).toContain('should not exist');
+    });
+
+    it('should reject idempotency key in body (header-only)', async () => {
+      const response = await request(app.getHttpServer())
+        .post('/transactions')
+        .set('Authorization', `Bearer ${authToken}`)
+        .set('idempotency-key', '660e8400-e29b-41d4-a716-446655440007')
+        .send({
+          amount: 100,
+          type: 'CREDIT',
+          idempotencyKey: '770e8400-e29b-41d4-a716-446655440008',
+        })
+        .expect(400);
+
+      const messageStr = JSON.stringify(response.body.message);
+      expect(messageStr).toContain('idempotencyKey');
+      expect(messageStr).toContain('should not exist');
     });
 
     it('should accept valid amount with 2 decimal places', async () => {
       const response = await request(app.getHttpServer())
         .post('/transactions')
         .set('Authorization', `Bearer ${authToken}`)
+        .set('idempotency-key', '660e8400-e29b-41d4-a716-446655440009')
         .send({
           amount: 100.99,
           type: 'CREDIT',
-          idempotencyKey: '660e8400-e29b-41d4-a716-446655440007',
         })
         .expect(201);
 

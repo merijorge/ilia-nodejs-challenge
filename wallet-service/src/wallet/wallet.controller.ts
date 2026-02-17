@@ -2,7 +2,6 @@ import {
   Body,
   Controller,
   Get,
-  Param,
   Post,
   Request,
   UseGuards,
@@ -42,5 +41,4 @@ export class WalletController {
     const userId = req.user.userId;
     return await this.walletService.verifyBalanceIntegrity(userId);
   }
-
 }

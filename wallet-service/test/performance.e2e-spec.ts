@@ -14,9 +14,6 @@ describe('Balance Performance (e2e)', () => {
   const userId2 = '550e8400-e29b-41d4-a716-446655440001';
   const userId3 = '550e8400-e29b-41d4-a716-446655440002';
   const userId4 = '550e8400-e29b-41d4-a716-446655440003';
-  // Uncomment for extreme scale testing (adds ~100s to test time)
-  // const userId5 = '550e8400-e29b-41d4-a716-446655440004'; // 100,000 tx
-  // const userId6 = '550e8400-e29b-41d4-a716-446655440005'; // 1,000,000 tx
 
   const generateToken = (userId: string, email: string): string => {
     return jwt.sign(
@@ -83,16 +80,11 @@ describe('Balance Performance (e2e)', () => {
     it('should retrieve balance in O(1) time regardless of transaction count', async () => {
       process.stdout.write('\n=== TEST 1: Balance Lookup Performance ===\n\n');
 
-      // Create wallets
       await prisma.wallet.create({ data: { user_id: userId1, balance: 100 } });
       await prisma.wallet.create({ data: { user_id: userId2, balance: 100 } });
       await prisma.wallet.create({ data: { user_id: userId3, balance: 100 } });
       await prisma.wallet.create({ data: { user_id: userId4, balance: 100 } });
-      // Uncomment for extreme scale:
-      // await prisma.wallet.create({ data: { user_id: userId5, balance: 100 } });
-      // await prisma.wallet.create({ data: { user_id: userId6, balance: 100 } });
 
-      // Create transactions at different scales
       process.stdout.write(
         'Setup: Creating wallets with varying transaction histories\n',
       );
@@ -100,19 +92,12 @@ describe('Balance Performance (e2e)', () => {
       await createBulkTransactions(userId2, 100);
       await createBulkTransactions(userId3, 1000);
       await createBulkTransactions(userId4, 10000);
-      // Uncomment for extreme scale (adds ~100s):
-      // await createBulkTransactions(userId5, 100000);
-      // await createBulkTransactions(userId6, 1000000);
 
-      // Generate tokens
       const token1 = generateToken(userId1, 'user1@example.com');
       const token2 = generateToken(userId2, 'user2@example.com');
       const token3 = generateToken(userId3, 'user3@example.com');
       const token4 = generateToken(userId4, 'user4@example.com');
-      // const token5 = generateToken(userId5, 'user5@example.com');
-      // const token6 = generateToken(userId6, 'user6@example.com');
 
-      // Measure balance retrieval times
       process.stdout.write(
         '\nTest: Measuring balance lookup time for each wallet\n',
       );
@@ -145,29 +130,12 @@ describe('Balance Performance (e2e)', () => {
         .expect(200);
       const time4 = Date.now() - start4;
 
-      // Uncomment for extreme scale:
-      // const start5 = Date.now();
-      // await request(app.getHttpServer())
-      //   .get('/wallet/balance')
-      //   .set('Authorization', `Bearer ${token5}`)
-      //   .expect(200);
-      // const time5 = Date.now() - start5;
-
-      // const start6 = Date.now();
-      // await request(app.getHttpServer())
-      //   .get('/wallet/balance')
-      //   .set('Authorization', `Bearer ${token6}`)
-      //   .expect(200);
-      // const time6 = Date.now() - start6;
-
       process.stdout.write(`  Wallet with 10 transactions: ${time1}ms\n`);
       process.stdout.write(`  Wallet with 100 transactions: ${time2}ms\n`);
       process.stdout.write(`  Wallet with 1,000 transactions: ${time3}ms\n`);
       process.stdout.write(`  Wallet with 10,000 transactions: ${time4}ms\n`);
-      // process.stdout.write(`  Wallet with 100,000 transactions: ${time5}ms\n`);
-      // process.stdout.write(`  Wallet with 1,000,000 transactions: ${time6}ms\n`);
 
-      const times = [time1, time2, time3, time4]; // Add time5, time6 for extreme scale
+      const times = [time1, time2, time3, time4];
       const maxTime = Math.max(...times);
       const minTime = Math.min(...times);
       const avgTime = times.reduce((a, b) => a + b, 0) / times.length;
@@ -182,7 +150,6 @@ describe('Balance Performance (e2e)', () => {
         `  ${variance < 100 && maxTime < 200 ? '✓ PASS - Balance lookup is O(1)' : '✗ FAIL'}\n\n`,
       );
 
-      // Assertions
       expect(variance).toBeLessThan(100);
       expect(maxTime).toBeLessThan(200);
       expect(avgTime).toBeLessThan(50);
@@ -193,7 +160,6 @@ describe('Balance Performance (e2e)', () => {
         data: { user_id: userId1, balance: 0 },
       });
 
-      // Create 50 transactions with alternating credit/debit
       for (let i = 0; i < 50; i++) {
         const amount = i % 2 === 0 ? 10 : 5;
         const type = i % 2 === 0 ? 'CREDIT' : 'DEBIT';
@@ -293,10 +259,10 @@ describe('Balance Performance (e2e)', () => {
         await request(app.getHttpServer())
           .post('/transactions')
           .set('Authorization', `Bearer ${token}`)
+          .set('idempotency-key', randomUUID())
           .send({
             amount: 10,
             type: 'DEBIT',
-            idempotencyKey: randomUUID(),
           })
           .expect(201);
 
@@ -328,7 +294,6 @@ describe('Balance Performance (e2e)', () => {
         '\n=== TEST 3: Transaction Creation with Varying History ===\n\n',
       );
 
-      // Setup: Create wallets with different transaction histories
       process.stdout.write(
         'Setup: Creating wallets with varying transaction histories\n',
       );
@@ -346,11 +311,9 @@ describe('Balance Performance (e2e)', () => {
         data: { user_id: userId4, balance: 10000 },
       });
 
-      // Create existing transaction history
       await createBulkTransactions(userId1, 10);
       await createBulkTransactions(userId2, 1000);
       await createBulkTransactions(userId3, 10000);
-      // userId4 stays at 0 transactions (baseline)
 
       process.stdout.write(
         '\nTest: Creating 1 new transaction on each wallet\n',
@@ -361,54 +324,50 @@ describe('Balance Performance (e2e)', () => {
       const token3 = generateToken(userId3, 'user3@example.com');
       const token4 = generateToken(userId4, 'user4@example.com');
 
-      // Baseline: Wallet with 0 existing transactions
       const start4 = Date.now();
       await request(app.getHttpServer())
         .post('/transactions')
         .set('Authorization', `Bearer ${token4}`)
+        .set('idempotency-key', randomUUID())
         .send({
           amount: 10,
           type: 'DEBIT',
-          idempotencyKey: randomUUID(),
         })
         .expect(201);
       const time4 = Date.now() - start4;
 
-      // Wallet with 10 existing transactions
       const start1 = Date.now();
       await request(app.getHttpServer())
         .post('/transactions')
         .set('Authorization', `Bearer ${token1}`)
+        .set('idempotency-key', randomUUID())
         .send({
           amount: 10,
           type: 'DEBIT',
-          idempotencyKey: randomUUID(),
         })
         .expect(201);
       const time1 = Date.now() - start1;
 
-      // Wallet with 1,000 existing transactions
       const start2 = Date.now();
       await request(app.getHttpServer())
         .post('/transactions')
         .set('Authorization', `Bearer ${token2}`)
+        .set('idempotency-key', randomUUID())
         .send({
           amount: 10,
           type: 'DEBIT',
-          idempotencyKey: randomUUID(),
         })
         .expect(201);
       const time2 = Date.now() - start2;
 
-      // Wallet with 10,000 existing transactions
       const start3 = Date.now();
       await request(app.getHttpServer())
         .post('/transactions')
         .set('Authorization', `Bearer ${token3}`)
+        .set('idempotency-key', randomUUID())
         .send({
           amount: 10,
           type: 'DEBIT',
-          idempotencyKey: randomUUID(),
         })
         .expect(201);
       const time3 = Date.now() - start3;
@@ -441,7 +400,6 @@ describe('Balance Performance (e2e)', () => {
         `  ${variance < 100 && maxTime < 200 ? '✓ PASS - Transaction creation is O(1)' : '✗ FAIL'}\n\n`,
       );
 
-      // Assertions
       expect(variance).toBeLessThan(100);
       expect(maxTime).toBeLessThan(200);
       expect(avgTime).toBeLessThan(100);
