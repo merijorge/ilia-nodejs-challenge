@@ -1,11 +1,11 @@
 # Ilia Digital Wallet Challenge
 
 ![CI/CD](https://github.com/merijorge/ilia-nodejs-challenge/actions/workflows/test.yml/badge.svg)
-![Tests](https://img.shields.io/badge/tests-29%20passing-brightgreen)
-![Node](https://img.shields.io/badge/node-18+-green)
+![Tests](https://img.shields.io/badge/tests-73%20passing-brightgreen)
+![Node](https://img.shields.io/badge/node-20+-green)
 ![TypeScript](https://img.shields.io/badge/typescript-5.0-blue)
 ![Docker](https://img.shields.io/badge/docker-ready-blue)
-![NestJS](https://img.shields.io/badge/nestjs-10-E0234E)
+![NestJS](https://img.shields.io/badge/nestjs-11-E0234E)
 
 A microservices-based digital wallet system with user management and transaction handling, built with NestJS and PostgreSQL.
 
@@ -21,13 +21,14 @@ This project implements a microservices architecture with two independent servic
 - **Microservices Architecture**: Independent services with separate databases
 - **JWT Authentication**: External (user-facing) and internal (service-to-service) tokens
 - **UUID Primary Keys**: Distributed system ready with UUID-based identifiers
-- **Idempotency**: Transaction deduplication using idempotency keys
+- **Idempotency**: IETF-compliant transaction deduplication via required header
 - **Transaction Rollback**: Atomic operations with automatic rollback on failure
 - **ACID Compliance**: Race condition protection and double spending prevention
 - **IDOR Prevention**: User context from JWT tokens, never from request data
 - **Separation of Concerns**: Clean architecture with distinct service responsibilities
-- **Comprehensive Testing**: 29/29 E2E tests passing
+- **Comprehensive Testing**: 73 tests passing across 7 test suites
 - **Docker Support**: Full containerization with Docker Compose
+- **OpenAPI Documentation**: Swagger UI available at `/api/docs` on the Wallet Service
 
 ## Tech Stack
 
@@ -42,7 +43,7 @@ This project implements a microservices architecture with two independent servic
 
 ## Prerequisites
 
-- Node.js 18+ and npm
+- Node.js 20+ and npm
 - Docker & Docker Compose (for containerized setup)
 - PostgreSQL 16+ (for local development)
 
@@ -60,6 +61,7 @@ Services will be available at:
 
 - User Service: http://localhost:3002
 - Wallet Service: http://localhost:3001
+- Swagger UI: http://localhost:3001/api/docs
 
 ### Local Development
 
@@ -67,14 +69,33 @@ See [docs/LOCAL_DEVELOPMENT.md](docs/LOCAL_DEVELOPMENT.md) for detailed local se
 
 ## Running Tests
 
-### Wallet Service E2E Tests
+### Wallet Service Tests
+
+Unit tests (decorator):
+
+```bash
+cd wallet-service
+npm test
+```
+
+**Expected:** 7 tests passing (IdempotencyKey decorator)
+
+E2E tests:
 
 ```bash
 cd wallet-service
 npm run test:e2e
 ```
 
-**Expected:** 16/16 tests passing
+**Expected:** 38 tests passing across 4 test suites:
+
+- wallet-e2e-spec.ts - Core wallet operations
+
+- performance.e2e-spec.ts - O(1) complexity verification
+
+- concurrent-transactions.e2e-spec.ts - Race condition testing
+
+- validation.e2e-spec.ts - Input validation rules
 
 ### User Service E2E Tests
 
@@ -96,9 +117,32 @@ cd user-service
 npm run test:e2e
 ```
 
-**Expected:** 13/13 tests passing
+**Expected:** 28 tests passing across 2 test suites:
+
+- user-e2e-spec.ts - User management and authentication
+
+- validation.e2e-spec.ts - Input validation and security
+
+## Test Coverage
+
+Total: **73 tests** across **7 test suites**
+
+### Wallet Service (45 tests)
+- **Unit** - IdempotencyKey decorator (7 tests)
+- **Core Operations** - Balance queries, transaction creation, wallet management
+- **Performance** - O(1) complexity verification (10-10,000 transaction scale)
+- **Concurrency** - Race condition protection, idempotency under load
+- **Validation** - Input sanitization, boundary conditions, error handling
+
+### User Service (28 tests)
+- **User Management** - Registration, authentication, profile operations
+- **Validation** - Password strength, email format, XSS prevention
+- **Integration** - Cross-service wallet creation, rollback mechanisms
+- **Security** - JWT validation, IDOR prevention, authorization checks
 
 ## API Documentation
+
+Interactive documentation is available via Swagger UI at `http://localhost:3001/api/docs` when the Wallet Service is running.
 
 ### User Service API (Port 3002)
 
@@ -111,7 +155,7 @@ Register a new user and automatically create a wallet.
 ```json
 {
   "email": "user@example.com",
-  "password": "password123",
+  "password": "Password123",
   "first_name": "John",
   "last_name": "Doe"
 }
@@ -126,8 +170,7 @@ Register a new user and automatically create a wallet.
     "id": "550e8400-e29b-41d4-a716-446655440000",
     "email": "user@example.com",
     "first_name": "John",
-    "last_name": "Doe",
-    "created_at": "2026-01-30T18:00:00.000Z"
+    "last_name": "Doe"
   }
 }
 ```
@@ -141,7 +184,7 @@ Authenticate and receive JWT token.
 ```json
 {
   "email": "user@example.com",
-  "password": "password123"
+  "password": "Password123"
 }
 ```
 
@@ -177,7 +220,8 @@ Authorization: Bearer <access_token>
   "email": "user@example.com",
   "first_name": "John",
   "last_name": "Doe",
-  "created_at": "2026-01-30T18:00:00.000Z"
+  "createdAt": "2026-01-30T18:00:00.000Z",
+  "updatedAt": "2026-01-30T18:00:00.000Z"
 }
 ```
 
@@ -227,11 +271,13 @@ Authorization: Bearer <access_token>
 
 Create a new transaction (credit or debit). Requires authentication.
 
+The `Idempotency-Key` header is required and must be a valid UUID v4. Sending the key in the request body is rejected.
+
 **Headers:**
 
 ```
 Authorization: Bearer <access_token>
-Idempotency-Key: <unique-uuid>
+Idempotency-Key: <uuid-v4>
 ```
 
 **Request (Credit):**
@@ -239,8 +285,7 @@ Idempotency-Key: <unique-uuid>
 ```json
 {
   "amount": 100.5,
-  "type": "CREDIT",
-  "idempotencyKey": "550e8400-e29b-41d4-a716-446655440001"
+  "type": "CREDIT"
 }
 ```
 
@@ -249,8 +294,7 @@ Idempotency-Key: <unique-uuid>
 ```json
 {
   "amount": 50.25,
-  "type": "DEBIT",
-  "idempotencyKey": "550e8400-e29b-41d4-a716-446655440002"
+  "type": "DEBIT"
 }
 ```
 
@@ -295,7 +339,7 @@ Authorization: Bearer <access_token>
 ## Security Features
 
 - **Password Hashing**: bcrypt with salt rounds
-- **JWT Tokens**: External (1h) and internal (5min) with separate secrets
+- **JWT Tokens**: External (24h) and internal (5min) with separate secrets
 - **Input Validation**: class-validator with whitelist and transform
 - **SQL Injection Prevention**: Prisma ORM with prepared statements
 - **Service Authentication**: Internal JWT validation for service-to-service calls
@@ -318,11 +362,17 @@ Separate secrets for user-facing and internal APIs provide better security isola
 
 ### Idempotency Keys
 
-Transaction deduplication prevents duplicate charges from network retries.
+Transaction deduplication prevents duplicate charges from network retries. Keys are required via header (UUID v4), scoped per user, and validated against IETF idempotency key semantics.
 
 ### Transaction Rollback
 
 User deletion on wallet creation failure maintains data consistency.
+
+### Compensating Transactions
+
+Cross-service operations use compensation rather than distributed transactions. User creation attempts
+wallet creation; on failure, the user is deleted. This saga pattern maintains service independence
+while ensuring best-effort cross-service consistency.
 
 ### Separation of Concerns
 
@@ -332,19 +382,23 @@ Clean architectural boundaries ensure each service and layer has a single, well-
 
 ### Consistency & Concurrency
 
-**Race Condition Protection:** All financial operations use Prisma transactions to ensure atomicity. Balance checks and updates occur within the same transaction, preventing race conditions.
+**Race Condition Protection:** All financial operations use Prisma transactions to ensure atomicity.
+Balance checks and updates occur within the same transaction, preventing race conditions.
 
-**Double Spending Prevention:** Idempotency keys with unique database constraints prevent duplicate transactions. The system returns 409 Conflict for retry attempts.
+**ACID Guarantees:** Each service maintains ACID properties within its own database. All financial
+operations (transaction creation + balance update) execute atomically via Prisma transactions.
 
-**ACID Compliance:** User registration demonstrates transaction rollback - if wallet creation fails, the user is deleted to maintain data consistency across services.
+**Cross-Service Consistency:** User registration uses a compensating transaction pattern - if wallet
+creation fails, the user is automatically deleted to maintain eventual consistency across services.
+This provides best-effort consistency without requiring distributed transactions.
 
 ### Performance & Scalability
 
 **Balance Operations:** All balance operations are **O(1)** constant-time, regardless of transaction count. Balance is stored and updated atomically using database-level `increment`/`decrement` operations—no recalculation from transaction history.
 
-**Empirical Proof:** Balance lookup remains constant at 5-6ms whether user has 10 or 10,000 transactions (variance: 31ms, well below 100ms threshold).
+**Empirical Proof:** Balance lookup remains constant at 6-7ms whether a user has 10 or 10,000 transactions (variance: 11ms, well below 100ms threshold).
 
-**Database Optimization:** Indexes on foreign keys (`transactions.user_id`), unique constraints on idempotency keys, atomic operations, and efficient Prisma queries.
+**Database Optimization:** Indexes on foreign keys (`transactions.user_id`), composite unique constraints on idempotency keys scoped per user, atomic operations, and efficient Prisma queries.
 
 **Integrity Verification:** Balance integrity verification endpoint available for auditing (O(N) operation, used only for debugging).
 
@@ -352,9 +406,9 @@ For detailed performance analysis, test results, and scalability design, see **[
 
 ### Idempotency & Resilience
 
-**True Idempotency Pattern:** Transaction creation returns identical responses (201 + same transaction) for duplicate requests. Duplicate detection is atomic at database level via unique constraint, eliminating race conditions. Concurrent duplicate requests all receive the same transaction.
+**True Idempotency Pattern:** Transaction creation returns identical responses (201 + same transaction) for duplicate requests. Duplicate detection is atomic at database level via composite unique constraint on `(user_id, idempotency_key)`, eliminating race conditions. Concurrent duplicate requests all receive the same transaction.
 
-**Duplicate Handling:** Idempotency keys supported in both headers and request body. Database unique constraints prevent duplicate processing.
+**Duplicate Handling:** Idempotency keys are required via the `Idempotency-Key` header. Reusing a key with a different payload returns 422. Database unique constraints prevent duplicate processing.
 
 **Network Failures:** Internal JWT tokens expire in 5 minutes. Rollback mechanisms handle partial failures, preventing orphaned records.
 
@@ -392,9 +446,14 @@ For implementation details, client usage examples, and concurrency testing resul
 
 **Configuration:** All secrets in `.env` files. ConfigService used throughout. No hardcoded values.
 
-**Error Handling:** Try-catch blocks on critical operations. Proper HTTP status codes (401, 404, 409, 400, 500). Rollback on failure.
+**Error Handling:** Try-catch blocks on critical operations. Proper HTTP status codes (401, 404, 409, 400, 422, 500). Rollback on failure.
 
 **Transaction Lifecycle:** Prisma handles connection pooling. Transactions automatically committed or rolled back. No hanging connections.
+
+**Transaction Guarantees:**
+- Within wallet-service: ACID compliance via Prisma transactions (transaction creation + balance update atomic)
+- Within user-service: ACID compliance via Prisma for user operations
+- Cross-service: Eventual consistency via compensating transactions (no distributed ACID)
 
 **Code Formatting:** ESLint and Prettier configured with recommended rules.
 
@@ -422,16 +481,15 @@ wallets:
   created_at   TIMESTAMP
   updated_at   TIMESTAMP
 
-
 transactions:
   id                UUID PRIMARY KEY
   user_id           UUID NOT NULL
   amount            DECIMAL(10,2) NOT NULL
   type              ENUM('CREDIT', 'DEBIT')
-  idempotency_key   VARCHAR UNIQUE NOT NULL
+  idempotency_key   VARCHAR NOT NULL
   created_at        TIMESTAMP
 
-
+  UNIQUE (user_id, idempotency_key)
   INDEX idx_transactions_user_id (user_id)
 ```
 
@@ -447,7 +505,6 @@ See `.env.example` files in each service directory.
 - Implement email verification
 - Add wallet-to-wallet transfers
 - Implement event-driven architecture (Kafka/RabbitMQ)
-- Add Swagger/OpenAPI documentation
 - Implement monitoring and logging (Prometheus/Grafana)
 - Add circuit breaker pattern for resilience
 - Implement distributed tracing (Jaeger/Zipkin)
@@ -461,6 +518,9 @@ ilia-nodejs-challenge/
 ├── docs/
 │   ├── LOCAL_DEVELOPMENT.md
 │   ├── API_EXAMPLES.md
+│   ├── IDEMPOTENCY.md
+│   ├── PERFORMANCE.md
+│   ├── VALIDATION.md
 │   └── challenge/
 │       ├── Original_Challenge_README.md
 │       ├── diagram.png
@@ -469,13 +529,14 @@ ilia-nodejs-challenge/
 ├── wallet-service/
 │   ├── src/
 │   │   ├── auth/              # JWT guards and strategies
+│   │   ├── common/            # Shared decorators and filters
 │   │   ├── transaction/       # Transaction handling
 │   │   ├── wallet/            # Wallet management
 │   │   └── prisma/            # Database client
 │   ├── prisma/
 │   │   ├── schema.prisma
 │   │   └── migrations/
-│   ├── test/                  # E2E tests
+│   ├── test/                  # E2E and unit tests
 │   └── .env.example
 └── user-service/
     ├── src/

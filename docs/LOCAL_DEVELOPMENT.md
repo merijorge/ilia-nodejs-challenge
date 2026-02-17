@@ -4,7 +4,7 @@ Complete guide for running the project locally without Docker.
 
 ## Prerequisites
 
-- Node.js 18+
+- Node.js 20+
 - PostgreSQL 16+
 - Git
 
@@ -16,7 +16,7 @@ Complete guide for running the project locally without Docker.
 git clone https://github.com/merijorge/ilia-nodejs-challenge
 cd ilia-nodejs-challenge
 
-# Create databases
+# Create databases (both on the same PostgreSQL instance)
 psql -U postgres
 CREATE DATABASE wallet_db;
 CREATE DATABASE user_db;
@@ -49,6 +49,7 @@ npm run start:dev
 ```
 
 Wallet Service: http://localhost:3001
+Swagger UI: http://localhost:3001/api/docs
 
 ### 3. User Service
 
@@ -84,16 +85,27 @@ User Service: http://localhost:3002
 
 ### Wallet Service
 
+Unit tests (no external dependencies required):
+
+```bash
+cd wallet-service
+npm test
+```
+
+Expected: 7 tests passing (IdempotencyKey decorator)
+
+E2E tests (requires a running PostgreSQL instance):
+
 ```bash
 cd wallet-service
 npm run test:e2e
 ```
 
-Expected: 16/16 passing
+Expected: 38 tests passing across 4 test suites
 
 ### User Service
 
-**Important:** Start Wallet Service first.
+**Important:** Start Wallet Service first (user registration triggers wallet creation).
 
 ```bash
 # Terminal 1
@@ -105,11 +117,12 @@ cd user-service
 npm run test:e2e
 ```
 
-Expected: 13/13 passing
+Expected: 28 tests passing across 2 test suites
 
 ## Common Issues
 
 **Port already in use:**
+
 ```bash
 lsof -i :3001          # macOS/Linux
 netstat -ano | findstr :3001  # Windows
@@ -120,6 +133,7 @@ kill -9 <PID>
 Make sure PostgreSQL is running and credentials in `.env` are correct.
 
 **Prisma client not found:**
+
 ```bash
 npx prisma generate
 ```
