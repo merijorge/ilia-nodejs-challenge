@@ -1,9 +1,12 @@
 import {
   ConflictException,
   Injectable,
+  InternalServerErrorException,
   Logger,
   NotFoundException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { RegisterDto } from '../auth/dto/register.dto';
 import { PrismaService } from '../prisma/prisma.service';
@@ -20,31 +23,33 @@ export class UserService {
   ) {}
 
   async create(registerDto: RegisterDto) {
-    // 1. Check if email already exists
-    const existingUser = await this.prisma.user.findUnique({
-      where: { email: registerDto.email },
-    });
-
-    if (existingUser) {
-      throw new ConflictException('User already exists');
-    }
-
-    // 2. Hash password
+    // Hash password
     const hashedPassword = await bcrypt.hash(registerDto.password, 10);
 
-    // 3. Create user
-    const user = await this.prisma.user.create({
-      data: {
-        email: registerDto.email,
-        password: hashedPassword,
-        first_name: registerDto.first_name,
-        last_name: registerDto.last_name,
-      },
-    });
+    // Create user — unique constraint on email handles duplicates atomically
+    let user: Prisma.UserGetPayload<object>;
+    try {
+      user = await this.prisma.user.create({
+        data: {
+          email: registerDto.email,
+          password: hashedPassword,
+          first_name: registerDto.first_name,
+          last_name: registerDto.last_name,
+        },
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        throw new ConflictException('User already exists');
+      }
+      throw error;
+    }
 
     this.logger.log(`User created: id=${user.id}, email=${user.email}`);
 
-    // 4. Try to create wallet
+    // Try to create wallet
     try {
       await this.walletClientService.createWallet(user.id);
       this.logger.log(`Wallet created successfully for user: id=${user.id}`);
@@ -55,7 +60,7 @@ export class UserService {
       );
       this.logger.warn(`Initiating rollback: deleting user id=${user.id}`);
 
-      // 5. Rollback: delete user if wallet creation fails
+      // Rollback: delete user if wallet creation fails
       try {
         await this.prisma.user.delete({ where: { id: user.id } });
         this.logger.log(`Rollback successful: user id=${user.id} deleted`);
@@ -64,12 +69,14 @@ export class UserService {
           `Rollback failed: unable to delete user id=${user.id}`,
           rollbackError.stack,
         );
-        throw new Error(
-          'Critical error: User created but wallet creation failed and rollback failed',
+        throw new InternalServerErrorException(
+          'User registration failed and could not be rolled back',
         );
       }
 
-      throw new Error('Failed to create wallet for user');
+      throw new ServiceUnavailableException(
+        'User registration failed due to a downstream service error',
+      );
     }
 
     return user;
@@ -96,29 +103,30 @@ export class UserService {
   }
 
   async updateProfile(userId: string, updateUserDto: UpdateUserDto) {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-    });
+    try {
+      const updatedUser = await this.prisma.user.update({
+        where: { id: userId },
+        data: updateUserDto,
+        select: {
+          id: true,
+          email: true,
+          first_name: true,
+          last_name: true,
+          created_at: true,
+          updated_at: true,
+        },
+      });
 
-    if (!user) {
-      throw new NotFoundException('User not found');
+      this.logger.log(`User profile updated: id=${userId}`);
+      return updatedUser;
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        throw new NotFoundException('User not found');
+      }
+      throw error;
     }
-
-    const updatedUser = await this.prisma.user.update({
-      where: { id: userId },
-      data: updateUserDto,
-      select: {
-        id: true,
-        email: true,
-        first_name: true,
-        last_name: true,
-        created_at: true,
-        updated_at: true,
-      },
-    });
-
-    this.logger.log(`User profile updated: id=${userId}`);
-
-    return updatedUser;
   }
 }
