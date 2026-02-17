@@ -8,7 +8,12 @@ import {
 import { Prisma, TransactionType } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreateTransactionDto } from './dto/create-transaction.dto';
+
+interface CreateTransactionInput {
+  amount: number;
+  type: TransactionType;
+  idempotencyKey: string;
+}
 
 @Injectable()
 export class TransactionService {
@@ -16,7 +21,7 @@ export class TransactionService {
 
   constructor(private prisma: PrismaService) {}
 
-  async createTransaction(userId: string, dto: CreateTransactionDto) {
+  async createTransaction(userId: string, dto: CreateTransactionInput) {
     const startTime = Date.now();
 
     try {

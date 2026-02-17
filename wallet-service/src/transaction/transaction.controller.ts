@@ -2,12 +2,12 @@ import {
   Body,
   Controller,
   Get,
-  Headers,
   Post,
   Request,
   UseGuards,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { IdempotencyKey } from '../common/decorators/idempotency-key.decorator';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
 import { TransactionService } from './transaction.service';
 
@@ -20,17 +20,13 @@ export class TransactionController {
   async createTransaction(
     @Request() req,
     @Body() createTransactionDto: CreateTransactionDto,
-    @Headers('idempotency-key') idempotencyKey?: string,
+    @IdempotencyKey() idempotencyKey: string,
   ) {
     const userId = req.user.userId;
 
-    if (idempotencyKey) {
-      createTransactionDto.idempotencyKey = idempotencyKey;
-    }
-
     const transaction = await this.transactionService.createTransaction(
       userId,
-      createTransactionDto,
+      { ...createTransactionDto, idempotencyKey },
     );
 
     return {
