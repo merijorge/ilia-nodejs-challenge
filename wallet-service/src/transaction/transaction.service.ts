@@ -19,59 +19,68 @@ export class TransactionService {
     const startTime = Date.now();
 
     try {
-      // Execute transaction - idempotency check happens via DB constraint
       const result = await this.prisma.$transaction(async (tx) => {
-        // Create transaction record FIRST - duplicate fails here before balance update
-        const transaction = await tx.transaction.create({
-          data: {
-            user_id: userId,
-            amount: new Decimal(dto.amount),
-            type: dto.type,
-            idempotency_key: dto.idempotencyKey,
-          },
-        });
-
-        // Get wallet
+        // Validate wallet existence
         const wallet = await tx.wallet.findUnique({
           where: { user_id: userId },
         });
 
         if (!wallet) {
+          this.logger.error(
+            `Wallet not found for transaction: userId=${userId}`,
+          );
           throw new NotFoundException('Wallet not found');
         }
 
-        const previousBalance = Number(wallet.balance);
+        // Convert amount once for reuse
+        const amount = new Decimal(dto.amount);
 
-        // Check balance for debit
-        if (dto.type === TransactionType.DEBIT) {
-          if (previousBalance < dto.amount) {
+        // Create transaction record (duplicates fail here via unique constraint)
+        const transaction = await tx.transaction.create({
+          data: {
+            user_id: userId,
+            amount: amount,
+            type: dto.type,
+            idempotency_key: dto.idempotencyKey,
+          },
+        });
+
+        // Update balance atomically based on type
+        if (dto.type === TransactionType.CREDIT) {
+          // CREDIT: Increment (safe - can't go negative)
+          await tx.wallet.update({
+            where: { user_id: userId },
+            data: { balance: { increment: amount } },
+          });
+
+          this.logger.log(
+            `Transaction created: type=CREDIT, amount=${dto.amount}, user=${userId}`,
+          );
+        } else {
+          // DEBIT: Conditional update (atomic check + decrement)
+          const updateResult = await tx.wallet.updateMany({
+            where: {
+              user_id: userId,
+              balance: { gte: amount },
+            },
+            data: { balance: { decrement: amount } },
+          });
+
+          // If count is 0, insufficient funds
+          // Note: In this domain, wallets are never deleted, so count===0 
+          // definitively means insufficient funds, not "wallet not found"
+          if (updateResult.count === 0) {
             this.logger.warn(
-              `Insufficient funds: user=${userId}, balance=${previousBalance}, attempted=${dto.amount}`,
+              `Insufficient funds: user=${userId}, attempted=${dto.amount}`,
             );
             throw new BadRequestException('Insufficient funds');
           }
 
-          // Update balance (debit)
-          await tx.wallet.update({
-            where: { user_id: userId },
-            data: { balance: { decrement: new Decimal(dto.amount) } },
-          });
-        } else {
-          // Update balance (credit)
-          await tx.wallet.update({
-            where: { user_id: userId },
-            data: { balance: { increment: new Decimal(dto.amount) } },
-          });
+          this.logger.log(
+            `Transaction created: type=DEBIT, amount=${dto.amount}, user=${userId}`,
+          );
         }
 
-        const newBalance =
-          dto.type === TransactionType.CREDIT
-            ? previousBalance + dto.amount
-            : previousBalance - dto.amount;
-
-        this.logger.log(
-          `Transaction created: type=${dto.type}, amount=${dto.amount}, user=${userId}, balance=${previousBalance}→${newBalance.toFixed(2)}`,
-        );
         return transaction;
       });
 
