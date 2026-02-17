@@ -9,6 +9,7 @@ import { WalletClientModule } from './wallet-client/wallet-client.module';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
+      envFilePath: '.env',
     }),
     PrismaModule,
     AuthModule,
