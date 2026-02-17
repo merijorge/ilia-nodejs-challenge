@@ -103,7 +103,7 @@ describe('Wallet Service E2E Tests', () => {
         .send({ userId: testUserId })
         .expect(201);
 
-      // Try to create again
+      // Try to create again - should return 409 Conflict
       await request(app.getHttpServer())
         .post('/wallet/internal/create')
         .set('Authorization', `Bearer ${internalToken}`)
@@ -243,12 +243,13 @@ describe('Wallet Service E2E Tests', () => {
       expect(Number(wallet!.balance)).toBe(100);
     });
 
-    it('should reject duplicate idempotency key', async () => {
+    // Test for True Idempotency
+    it('should return same transaction for duplicate idempotency key (true idempotency)', async () => {
       const externalToken = generateExternalToken(testUserId);
       const idempotencyKey = 'a1a1a1a1-b2b2-4c3c-8d4d-e5e5e5e5e504';
 
       // First transaction
-      await request(app.getHttpServer())
+      const firstResponse = await request(app.getHttpServer())
         .post('/transactions')
         .set('Authorization', `Bearer ${externalToken}`)
         .send({
@@ -258,8 +259,10 @@ describe('Wallet Service E2E Tests', () => {
         })
         .expect(201);
 
-      // Second transaction with same key
-      await request(app.getHttpServer())
+      const firstTransactionId = firstResponse.body.id;
+
+      // Second transaction with same key, should return 201 with SAME transaction
+      const secondResponse = await request(app.getHttpServer())
         .post('/transactions')
         .set('Authorization', `Bearer ${externalToken}`)
         .send({
@@ -267,14 +270,29 @@ describe('Wallet Service E2E Tests', () => {
           type: 'CREDIT',
           idempotencyKey,
         })
-        .expect(409);
+        .expect(201); // TRUE idempotency returns 201
 
-      // Verify balance only increased once
+      // Verify it's the same transaction (same ID)
+      expect(secondResponse.body.id).toBe(firstTransactionId);
+      expect(secondResponse.body.amount).toBe(10);
+      expect(secondResponse.body.type).toBe('CREDIT');
+
+      // Verify balance only increased once (100 + 10 = 110, not 120)
       const wallet = await prisma.wallet.findUnique({
         where: { user_id: testUserId },
       });
       expect(wallet).toBeDefined();
       expect(Number(wallet!.balance)).toBe(110);
+
+      // Verify only ONE transaction exists in database
+      const transactions = await prisma.transaction.findMany({
+        where: {
+          user_id: testUserId,
+          idempotency_key: idempotencyKey,
+        },
+      });
+      expect(transactions.length).toBe(1);
+      expect(transactions[0].id).toBe(firstTransactionId);
     });
 
     it('should reject transaction without idempotency key', async () => {
@@ -304,25 +322,73 @@ describe('Wallet Service E2E Tests', () => {
         .expect(400);
     });
 
-    it('should accept idempotency key from header', async () => {
-      const externalToken = generateExternalToken(testUserId);
+    // Header-based idempotency
+    it('should accept idempotency key from header (header overrides body)', async () => {
+      const token = generateExternalToken(testUserId);
+      const headerKey = 'a1a1a1a1-b2b2-4c3c-8d4d-e5e5e5e5e506';
+      const bodyKey = 'b2b2b2b2-c3c3-4d4d-8e5e-f6f6f6f6f607';
 
       const response = await request(app.getHttpServer())
         .post('/transactions')
-        .set('Authorization', `Bearer ${externalToken}`)
-        .set('Idempotency-Key', 'a1a1a1a1-b2b2-4c3c-8d4d-e5e5e5e5e506')
+        .set('Authorization', `Bearer ${token}`)
+        .set('idempotency-key', headerKey)
         .send({
-          amount: 25,
+          amount: 100,
           type: 'CREDIT',
-          idempotencyKey: 'a1a1a1a1-b2b2-4c3c-8d4d-e5e5e5e5e507',
+          idempotencyKey: bodyKey,
         })
         .expect(201);
 
-      // Verify the header key was used
-      const transaction = await prisma.transaction.findUnique({
-        where: { idempotency_key: 'a1a1a1a1-b2b2-4c3c-8d4d-e5e5e5e5e506' },
+      // Verify the HEADER key was used (query by composite key)
+      const transactionFromHeader = await prisma.transaction.findUnique({
+        where: {
+          user_id_idempotency_key: {
+            user_id: testUserId,
+            idempotency_key: headerKey,
+          },
+        },
       });
-      expect(transaction).toBeDefined();
+      expect(transactionFromHeader).toBeDefined();
+      expect(transactionFromHeader!.id).toBe(response.body.id);
+
+      // Verify the BODY key was NOT used
+      const transactionFromBody = await prisma.transaction.findUnique({
+        where: {
+          user_id_idempotency_key: {
+            user_id: testUserId,
+            idempotency_key: bodyKey,
+          },
+        },
+      });
+      expect(transactionFromBody).toBeNull();
+    });
+
+    // Wallet existence validation
+    it('should reject transaction when wallet does not exist (404)', async () => {
+      const nonExistentUserId = 'd4e5f6a7-b8c9-4d5e-0f1a-2b3c4d5e6f7a';
+      const externalToken = generateExternalToken(nonExistentUserId);
+      const idempotencyKey = 'a1a1a1a1-b2b2-4c3c-8d4d-e5e5e5e5e510';
+
+      await request(app.getHttpServer())
+        .post('/transactions')
+        .set('Authorization', `Bearer ${externalToken}`)
+        .send({
+          amount: 50,
+          type: 'CREDIT',
+          idempotencyKey: idempotencyKey,
+        })
+        .expect(404);
+
+      // Verify no orphaned transaction was created (query by composite key)
+      const transaction = await prisma.transaction.findUnique({
+        where: {
+          user_id_idempotency_key: {
+            user_id: nonExistentUserId,
+            idempotency_key: idempotencyKey,
+          },
+        },
+      });
+      expect(transaction).toBeNull();
     });
   });
 
@@ -385,7 +451,7 @@ describe('Wallet Service E2E Tests', () => {
           user_id: otherUserId,
           amount: 10,
           type: 'CREDIT',
-          idempotency_key: 'a1a1a1a1-b2b2-4c3c-8d4d-e5e5e5e5e510',
+          idempotency_key: 'a1a1a1a1-b2b2-4c3c-8d4d-e5e5e5e5e511',
         },
       });
 
