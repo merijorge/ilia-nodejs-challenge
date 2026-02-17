@@ -106,13 +106,6 @@ export class TransactionService {
         });
 
         if (existingTransaction) {
-          if (existingTransaction.user_id !== userId) {
-            this.logger.error(
-              `SECURITY: Ownership mismatch detected - should be impossible with scoped schema`,
-            );
-            throw new BadRequestException('Invalid request');
-          }
-
           const attemptedAmount = new Decimal(dto.amount);
           const isSameType = existingTransaction.type === dto.type;
           const isSameAmount =
