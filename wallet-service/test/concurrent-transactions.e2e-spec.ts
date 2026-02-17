@@ -291,4 +291,59 @@ describe('Concurrent Transaction Tests (e2e)', () => {
       expect(transactions.length).toBe(1);
     });
   });
+  describe('Race Condition Prevention', () => {
+  it('should prevent double-spend with concurrent debits using different idempotency keys', async () => {
+    // Setup: Balance can satisfy one debit but not three
+    await prisma.wallet.create({
+      data: { user_id: testUserId, balance: 100 },
+    });
+
+    const token = generateToken(testUserId);
+
+    // Fire 3 concurrent debits of 80 each (total 240 > balance 100)
+    // Use DIFFERENT idempotency keys (testing race condition, not idempotency)
+    const requests = Array.from({ length: 3 }, () =>
+      request(app.getHttpServer())
+        .post('/transactions')
+        .set('Authorization', `Bearer ${token}`)
+        .send({
+          amount: 80,
+          type: 'DEBIT',
+          idempotencyKey: randomUUID(), // Different keys!
+        }),
+    );
+
+    const responses = await Promise.all(requests);
+
+    // Verify response distribution
+    const successCount = responses.filter((r) => r.status === 201).length;
+    const failCount = responses.filter((r) => r.status === 400).length;
+
+    expect(successCount).toBe(1);
+    expect(failCount).toBe(2);
+
+    // Verify no unexpected status codes (no 500s, 409s, etc.)
+    expect(responses.every((r) => [201, 400].includes(r.status))).toBe(true);
+
+    // Verify failed requests have correct error message
+    const failedResponses = responses.filter((r) => r.status === 400);
+    failedResponses.forEach((response) => {
+      expect(response.body.message).toBe('Insufficient funds');
+    });
+
+    // Verify balance never went negative (should be 20, not -140)
+    const wallet = await prisma.wallet.findUnique({
+      where: { user_id: testUserId },
+    });
+    expect(Number(wallet!.balance)).toBe(20); // 100 - 80 = 20
+
+    // Verify exactly 1 DEBIT transaction exists in database
+    const debitTransactions = await prisma.transaction.findMany({
+      where: { user_id: testUserId, type: 'DEBIT' },
+    });
+    expect(debitTransactions.length).toBe(1);
+    expect(Number(debitTransactions[0].amount)).toBe(80);
+  });
+});
+
 });
