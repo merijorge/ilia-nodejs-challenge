@@ -1,5 +1,6 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
+import { WalletClientService } from '../src/wallet-client/wallet-client.service';
 import { AppModule } from './../src/app.module';
 import { PrismaService } from './../src/prisma/prisma.service';
 const request = require('supertest');
@@ -239,6 +240,77 @@ describe('User Service (e2e)', () => {
           })
           .expect(401);
       });
+    });
+  });
+  describe('Registration Rollback', () => {
+    it('should not persist user if wallet creation fails', async () => {
+      const moduleFixture = await Test.createTestingModule({
+        imports: [AppModule],
+      })
+        .overrideProvider(WalletClientService)
+        .useValue({
+          createWallet: jest
+            .fn()
+            .mockRejectedValue(new Error('Wallet service unavailable')),
+        })
+        .compile();
+
+      const testApp = moduleFixture.createNestApplication();
+      testApp.useGlobalPipes(
+        new ValidationPipe({
+          whitelist: true,
+          forbidNonWhitelisted: true,
+          transform: true,
+        }),
+      );
+      await testApp.init();
+      const testPrisma = moduleFixture.get<PrismaService>(PrismaService);
+
+      const response = await request(testApp.getHttpServer())
+        .post('/auth/register')
+        .send({
+          email: 'rollback@example.com',
+          password: 'Password123',
+          first_name: 'Roll',
+          last_name: 'Back',
+        });
+
+      expect(response.status).toBe(503);
+
+      // Verify user was rolled back and does not persist
+      const user = await testPrisma.user.findUnique({
+        where: { email: 'rollback@example.com' },
+      });
+      expect(user).toBeNull();
+
+      await testApp.close();
+    });
+  });
+
+  describe('Email Normalization on Login', () => {
+    it('should authenticate successfully when login email case differs from registration', async () => {
+      // Register with mixed case — email normalized to lowercase on storage
+      await request(app.getHttpServer())
+        .post('/auth/register')
+        .send({
+          email: 'MixedCase@Example.COM',
+          password: 'Password123',
+          first_name: 'Mixed',
+          last_name: 'Case',
+        })
+        .expect(201);
+
+      // Login with different casing — should still authenticate
+      const response = await request(app.getHttpServer())
+        .post('/auth/login')
+        .send({
+          email: 'MIXEDCASE@EXAMPLE.COM',
+          password: 'Password123',
+        })
+        .expect(200);
+
+      expect(response.body).toHaveProperty('access_token');
+      expect(response.body.user.email).toBe('mixedcase@example.com');
     });
   });
 });

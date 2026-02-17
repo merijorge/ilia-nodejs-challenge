@@ -1,101 +1,121 @@
-import { BadRequestException } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  INestApplication,
+  ValidationPipe,
+} from '@nestjs/common';
+import { Test } from '@nestjs/testing';
+import { IdempotencyKey } from '../../../src/common/decorators/idempotency-key.decorator';
+const request = require('supertest');
 
-jest.mock('class-validator');
+@Controller('test')
+class TestController {
+  @Get()
+  handle(@IdempotencyKey() key: string) {
+    return { key };
+  }
+}
 
 describe('IdempotencyKey Decorator', () => {
-  let isUUID: jest.Mock;
+  let app: INestApplication;
 
-  beforeEach(() => {
-    jest.clearAllMocks();
-    const classValidator = require('class-validator');
-    isUUID = classValidator.isUUID;
+  beforeAll(async () => {
+    const module = await Test.createTestingModule({
+      controllers: [TestController],
+    }).compile();
+
+    app = module.createNestApplication();
+    app.useGlobalPipes(
+      new ValidationPipe({
+        whitelist: true,
+        forbidNonWhitelisted: true,
+        transform: true,
+      }),
+    );
+    await app.init();
   });
 
-  const testDecoratorLogic = (headers: Record<string, any>) => {
-    const raw = headers['idempotency-key'];
-
-    // Reject arrays/duplicates (IETF compliance)
-    if (Array.isArray(raw)) {
-      throw new BadRequestException(
-        'Idempotency-Key header must be a single value (no duplicates)',
-      );
-    }
-
-    if (typeof raw !== 'string' || raw.trim().length === 0) {
-      throw new BadRequestException('Idempotency-Key header is required');
-    }
-
-    const key = raw.trim();
-
-    if (!isUUID(key, '4')) {
-      throw new BadRequestException('Idempotency-Key must be a valid UUID v4');
-    }
-
-    return key;
-  };
+  afterAll(async () => {
+    await app.close();
+  });
 
   describe('Duplicate Headers', () => {
-    it('should reject duplicate headers (array)', () => {
-      expect(() =>
-        testDecoratorLogic({
-          'idempotency-key': ['uuid1', 'uuid2'],
-        }),
-      ).toThrow(
-        'Idempotency-Key header must be a single value (no duplicates)',
+    it('should reject duplicate headers (array)', async () => {
+      // Node.js HTTP combines duplicate header values into a comma-separated
+      // string before the decorator receives them. The combined value
+      // "uuid1, uuid2" is not a valid UUID v4, so the request is rejected
+      // with 400 at UUID validation. The Array.isArray guard in the decorator
+      // is defensive code for non-HTTP contexts (e.g. raw Node.js streams).
+      const response = await request(app.getHttpServer())
+        .get('/test')
+        .set('idempotency-key', ['uuid1', 'uuid2']);
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe(
+        'Idempotency-Key must be a valid UUID v4',
       );
     });
   });
 
   describe('Missing/Empty Headers', () => {
-    it('should reject missing header', () => {
-      expect(() => testDecoratorLogic({})).toThrow(
-        'Idempotency-Key header is required',
-      );
+    it('should reject missing header', async () => {
+      const response = await request(app.getHttpServer()).get('/test');
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('Idempotency-Key header is required');
     });
 
-    it('should reject empty string', () => {
-      expect(() =>
-        testDecoratorLogic({
-          'idempotency-key': '',
-        }),
-      ).toThrow('Idempotency-Key header is required');
+    it('should reject empty string', async () => {
+      const response = await request(app.getHttpServer())
+        .get('/test')
+        .set('idempotency-key', '');
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('Idempotency-Key header is required');
     });
 
-    it('should reject whitespace-only string', () => {
-      expect(() =>
-        testDecoratorLogic({
-          'idempotency-key': '   \t\n  ',
-        }),
-      ).toThrow('Idempotency-Key header is required');
+    it('should reject whitespace-only string', async () => {
+      const response = await request(app.getHttpServer())
+        .get('/test')
+        .set('idempotency-key', '     ');
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe('Idempotency-Key header is required');
     });
   });
 
   describe('Whitespace Trimming', () => {
-    it('should trim leading/trailing whitespace and validate UUID', () => {
-      isUUID.mockReturnValue(true);
-      const result = testDecoratorLogic({
-        'idempotency-key': '  123e4567-e89b-12d3-a456-426614174000  ',
-      });
-      expect(result).toBe('123e4567-e89b-12d3-a456-426614174000'); // Trimmed!
+    it('should trim leading/trailing whitespace and validate UUID', async () => {
+      const validUUID = '550e8400-e29b-41d4-a716-446655440000';
+      const response = await request(app.getHttpServer())
+        .get('/test')
+        .set('idempotency-key', `  ${validUUID}  `);
+
+      expect(response.status).toBe(200);
+      expect(response.body.key).toBe(validUUID);
     });
   });
 
   describe('UUID Validation', () => {
-    it('should reject invalid UUID', () => {
-      isUUID.mockReturnValue(false);
-      expect(() =>
-        testDecoratorLogic({
-          'idempotency-key': 'invalid-uuid',
-        }),
-      ).toThrow('Idempotency-Key must be a valid UUID v4');
+    it('should reject invalid UUID', async () => {
+      const response = await request(app.getHttpServer())
+        .get('/test')
+        .set('idempotency-key', 'invalid-uuid');
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe(
+        'Idempotency-Key must be a valid UUID v4',
+      );
     });
 
-    it('should accept valid UUID v4', () => {
-      isUUID.mockReturnValue(true);
-      const result = testDecoratorLogic({
-        'idempotency-key': '123e4567-e89b-12d3-a456-426614174000',
-      });
-      expect(result).toBe('123e4567-e89b-12d3-a456-426614174000');
+    it('should accept valid UUID v4', async () => {
+      const validUUID = '550e8400-e29b-41d4-a716-446655440000';
+      const response = await request(app.getHttpServer())
+        .get('/test')
+        .set('idempotency-key', validUUID);
+
+      expect(response.status).toBe(200);
+      expect(response.body.key).toBe(validUUID);
     });
   });
 });
