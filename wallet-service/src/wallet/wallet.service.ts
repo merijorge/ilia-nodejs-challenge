@@ -4,6 +4,7 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateWalletDto } from './dto/create-wallet.dto';
 
@@ -14,23 +15,25 @@ export class WalletService {
   constructor(private prisma: PrismaService) {}
 
   async createWallet(dto: CreateWalletDto) {
-    const existing = await this.prisma.wallet.findUnique({
-      where: { user_id: dto.userId },
-    });
+    try {
+      const wallet = await this.prisma.wallet.create({
+        data: {
+          user_id: dto.userId,
+          balance: 0,
+        },
+      });
 
-    if (existing) {
-      throw new ConflictException('Wallet already exists for this user');
+      this.logger.log(`Wallet created for user ${dto.userId} with balance 0`);
+      return wallet;
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        throw new ConflictException('Wallet already exists for this user');
+      }
+      throw error;
     }
-
-    const wallet = await this.prisma.wallet.create({
-      data: {
-        user_id: dto.userId,
-        balance: 0,
-      },
-    });
-
-    this.logger.log(`Wallet created for user ${dto.userId} with balance 0`);
-    return wallet;
   }
 
   async getBalance(userId: string) {
@@ -78,7 +81,7 @@ export class WalletService {
 
     const storedBalance = Number(wallet.balance);
     const discrepancy = Math.abs(storedBalance - calculatedBalance);
-    const isConsistent = discrepancy < 0.01; // Allow for floating point precision
+    const isConsistent = discrepancy < 0.01;
 
     if (!isConsistent) {
       this.logger.warn(
