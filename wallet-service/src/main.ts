@@ -1,8 +1,8 @@
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
-import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
@@ -28,7 +28,7 @@ async function bootstrap() {
     .setDescription('Secure idempotent wallet transactions')
     .setVersion('1.0')
     .addBearerAuth()
-    .addServer('http://localhost:3000')
+    .addServer('http://localhost:3001')
     .build();
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api/docs', app, document);
@@ -36,7 +36,9 @@ async function bootstrap() {
   const port = process.env.PORT || 3001;
   await app.listen(port);
 
-  logger.log(`🚀 Wallet Service running on port ${port} | Swagger: http://localhost:${port}/api/docs`);
+  logger.log(
+    `Wallet Service running on port ${port} | Swagger: http://localhost:${port}/api/docs`,
+  );
 
   // Graceful shutdown handlers
   process.on('SIGTERM', async () => {

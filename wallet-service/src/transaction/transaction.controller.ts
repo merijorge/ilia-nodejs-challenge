@@ -2,17 +2,24 @@ import {
   Body,
   Controller,
   Get,
-  Post,
   HttpCode,
+  Post,
   Request,
   UseGuards,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiHeader, ApiResponse } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiHeader,
+  ApiOperation,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { IdempotencyKey } from '../common/decorators/idempotency-key.decorator';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
 import { TransactionService } from './transaction.service';
 
+@ApiBearerAuth()
 @ApiTags('transactions')
 @Controller('transactions')
 @UseGuards(JwtAuthGuard)
@@ -57,7 +64,6 @@ export class TransactionController {
     status: 422,
     description: 'Idempotency key reused with different payload',
   })
-
   async createTransaction(
     @Body() createTransactionDto: CreateTransactionDto,
     @IdempotencyKey() idempotencyKey: string,
@@ -93,12 +99,11 @@ export class TransactionController {
           userId: { type: 'string', format: 'uuid' },
           amount: { type: 'number', format: 'float' },
           type: { type: 'string', enum: ['CREDIT', 'DEBIT'] },
-          createdAt: { type: 'string', format: 'date-time' }
-        }
-      }
-    }
+          createdAt: { type: 'string', format: 'date-time' },
+        },
+      },
+    },
   })
-
   async getTransactions(@Request() req) {
     const userId = req.user.userId;
     const transactions =

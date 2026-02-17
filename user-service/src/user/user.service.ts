@@ -83,8 +83,8 @@ export class UserService {
         email: true,
         first_name: true,
         last_name: true,
-        createdAt: true,
-        updatedAt: true,
+        created_at: true,
+        updated_at: true,
       },
     });
 
@@ -112,8 +112,8 @@ export class UserService {
         email: true,
         first_name: true,
         last_name: true,
-        createdAt: true,
-        updatedAt: true,
+        created_at: true,
+        updated_at: true,
       },
     });
 
