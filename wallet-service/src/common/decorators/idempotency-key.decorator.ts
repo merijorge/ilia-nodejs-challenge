@@ -8,20 +8,21 @@ import { isUUID } from 'class-validator';
 export const IdempotencyKey = createParamDecorator(
   (data: unknown, ctx: ExecutionContext): string => {
     const request = ctx.switchToHttp().getRequest();
-    const raw = request.headers['idempotency-key'] as
-      | string
-      | string[]
-      | undefined;
+    const raw = request.headers['idempotency-key']; // always lowercase
 
-    // Normalize: handle string | string[] | undefined
-    const key = Array.isArray(raw) ? raw[0] : raw;
+    // Reject arrays/duplicates (IETF compliance)
+    if (Array.isArray(raw)) {
+      throw new BadRequestException(
+        'Idempotency-Key header must be a single value (no duplicates)',
+      );
+    }
 
-    // Treat empty string as missing
-    if (typeof key !== 'string' || key.length === 0) {
+    if (typeof raw !== 'string' || raw.trim().length === 0) {
       throw new BadRequestException('Idempotency-Key header is required');
     }
 
-    // Validate UUID v4 using class-validator
+    const key = raw.trim();
+
     if (!isUUID(key, '4')) {
       throw new BadRequestException('Idempotency-Key must be a valid UUID v4');
     }
