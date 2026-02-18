@@ -141,7 +141,7 @@ jobs:
         run: |
           echo "Waiting for Wallet Service..."
           for i in {1..30}; do
-            if curl -f http://localhost:3001 > /dev/null 2>&1; then
+            if curl -s --max-time 2 http://localhost:3001 -o /dev/null; then
               echo "Wallet Service is up!"
               exit 0
             fi
