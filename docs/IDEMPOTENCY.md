@@ -34,14 +34,14 @@ On a `P2002` constraint violation, the system fetches and returns the existing t
 
 If the same idempotency key is reused with a different `amount` or `type`, the request is rejected with `422 Unprocessable Entity`. This prevents silent corruption from mismatched retries.
 
-| Scenario | Response |
-|---|---|
-| Same key, same payload | `201` + original transaction |
-| Same key, different payload | `422 Unprocessable Entity` |
-| Same key, different user | Independent transaction created |
-| Duplicate header values | `400 Bad Request` |
-| Invalid UUID v4 format | `400 Bad Request` |
-| Missing header | `400 Bad Request` |
+| Scenario                    | Response                        |
+| --------------------------- | ------------------------------- |
+| Same key, same payload      | `201` + original transaction    |
+| Same key, different payload | `422 Unprocessable Entity`      |
+| Same key, different user    | Independent transaction created |
+| Duplicate header values     | `400 Bad Request`               |
+| Invalid UUID v4 format      | `400 Bad Request`               |
+| Missing header              | `400 Bad Request`               |
 
 ## Behavior
 
@@ -77,7 +77,11 @@ HTTP/1.1 422 Unprocessable Entity
 
 {
   "statusCode": 422,
-  "message": "Idempotency key was previously used with a different request"
+  "timestamp": "2026-02-15T19:00:00.000Z",
+  "path": "/transactions",
+  "method": "POST",
+  "message": "Idempotency key was previously used with a different request",
+  "error": "Unprocessable Entity"
 }
 ```
 
@@ -106,12 +110,12 @@ The idempotency key must be generated once before the first attempt and reused o
 // Generate once — before the request, not inside the retry loop
 const idempotencyKey = uuidv4();
 
-await fetch('/transactions', {
-  method: 'POST',
+await fetch("/transactions", {
+  method: "POST",
   headers: {
-    'Authorization': `Bearer ${token}`,
-    'Content-Type': 'application/json',
-    'Idempotency-Key': idempotencyKey,
+    Authorization: `Bearer ${token}`,
+    "Content-Type": "application/json",
+    "Idempotency-Key": idempotencyKey,
   },
   body: JSON.stringify({ amount, type }),
 });

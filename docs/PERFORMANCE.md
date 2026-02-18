@@ -144,7 +144,7 @@ If needed: read replicas, Redis caching, sharding by `user_id`, connection pooli
 
 ```bash
 cd wallet-service
-npm run test:e2e -- performance.e2e-spec.ts
+npm run test:e2e
 ```
 
 Tests verify:
