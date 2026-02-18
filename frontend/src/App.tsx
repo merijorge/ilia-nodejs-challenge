@@ -8,6 +8,7 @@ import { RegisterPage } from "./pages/auth/RegisterPage";
 import { DashboardPage } from "./pages/dashboard/DashboardPage";
 import { AuthProvider } from "./stores/AuthProvider";
 import { useAuth } from "./stores/authStore";
+import { TransactionsPage } from './pages/transactions/TransactionsPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -59,7 +60,7 @@ function App() {
               }
             >
               <Route path="/dashboard" element={<DashboardPage />} />
-              <Route path="/transactions" element={<div>Transactions coming soon</div>} />
+              <Route path="/transactions" element={<TransactionsPage />} />
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
