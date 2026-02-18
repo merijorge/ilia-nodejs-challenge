@@ -2,9 +2,17 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { randomUUID } from 'crypto';
 import * as jwt from 'jsonwebtoken';
+import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
-const request = require('supertest');
+
+interface VerifyResponse {
+  isConsistent: boolean;
+  storedBalance: number;
+  calculatedBalance: number;
+  discrepancy: number;
+  transactionCount: number;
+}
 
 describe('Balance Performance (e2e)', () => {
   let app: INestApplication;
@@ -103,28 +111,28 @@ describe('Balance Performance (e2e)', () => {
       );
 
       const start1 = Date.now();
-      await request(app.getHttpServer())
+      await request(app.getHttpServer() as import('http').Server)
         .get('/wallet/balance')
         .set('Authorization', `Bearer ${token1}`)
         .expect(200);
       const time1 = Date.now() - start1;
 
       const start2 = Date.now();
-      await request(app.getHttpServer())
+      await request(app.getHttpServer() as import('http').Server)
         .get('/wallet/balance')
         .set('Authorization', `Bearer ${token2}`)
         .expect(200);
       const time2 = Date.now() - start2;
 
       const start3 = Date.now();
-      await request(app.getHttpServer())
+      await request(app.getHttpServer() as import('http').Server)
         .get('/wallet/balance')
         .set('Authorization', `Bearer ${token3}`)
         .expect(200);
       const time3 = Date.now() - start3;
 
       const start4 = Date.now();
-      await request(app.getHttpServer())
+      await request(app.getHttpServer() as import('http').Server)
         .get('/wallet/balance')
         .set('Authorization', `Bearer ${token4}`)
         .expect(200);
@@ -185,14 +193,17 @@ describe('Balance Performance (e2e)', () => {
 
       const token = generateToken(userId1, 'user@example.com');
 
-      const response = await request(app.getHttpServer())
+      const response = await request(
+        app.getHttpServer() as import('http').Server,
+      )
         .get('/wallet/verify')
         .set('Authorization', `Bearer ${token}`)
         .expect(200);
 
-      expect(response.body.isConsistent).toBe(true);
-      expect(response.body.transactionCount).toBe(50);
-      expect(response.body.discrepancy).toBeLessThan(0.01);
+      const body = response.body as VerifyResponse;
+      expect(body.isConsistent).toBe(true);
+      expect(body.transactionCount).toBe(50);
+      expect(body.discrepancy).toBeLessThan(0.01);
     });
 
     it('should detect balance inconsistencies', async () => {
@@ -224,15 +235,18 @@ describe('Balance Performance (e2e)', () => {
 
       const token = generateToken(userId1, 'user@example.com');
 
-      const verifyResponse = await request(app.getHttpServer())
+      const verifyResponse = await request(
+        app.getHttpServer() as import('http').Server,
+      )
         .get('/wallet/verify')
         .set('Authorization', `Bearer ${token}`)
         .expect(200);
 
-      expect(verifyResponse.body.isConsistent).toBe(false);
-      expect(verifyResponse.body.storedBalance).toBe(999);
-      expect(verifyResponse.body.calculatedBalance).toBe(150);
-      expect(verifyResponse.body.discrepancy).toBe(849);
+      const body = verifyResponse.body as VerifyResponse;
+      expect(body.isConsistent).toBe(false);
+      expect(body.storedBalance).toBe(999);
+      expect(body.calculatedBalance).toBe(150);
+      expect(body.discrepancy).toBe(849);
     });
   });
 
@@ -256,7 +270,7 @@ describe('Balance Performance (e2e)', () => {
       for (let i = 0; i < 100; i++) {
         const start = Date.now();
 
-        await request(app.getHttpServer())
+        await request(app.getHttpServer() as import('http').Server)
           .post('/transactions')
           .set('Authorization', `Bearer ${token}`)
           .set('idempotency-key', randomUUID())
@@ -325,50 +339,38 @@ describe('Balance Performance (e2e)', () => {
       const token4 = generateToken(userId4, 'user4@example.com');
 
       const start4 = Date.now();
-      await request(app.getHttpServer())
+      await request(app.getHttpServer() as import('http').Server)
         .post('/transactions')
         .set('Authorization', `Bearer ${token4}`)
         .set('idempotency-key', randomUUID())
-        .send({
-          amount: 10,
-          type: 'DEBIT',
-        })
+        .send({ amount: 10, type: 'DEBIT' })
         .expect(201);
       const time4 = Date.now() - start4;
 
       const start1 = Date.now();
-      await request(app.getHttpServer())
+      await request(app.getHttpServer() as import('http').Server)
         .post('/transactions')
         .set('Authorization', `Bearer ${token1}`)
         .set('idempotency-key', randomUUID())
-        .send({
-          amount: 10,
-          type: 'DEBIT',
-        })
+        .send({ amount: 10, type: 'DEBIT' })
         .expect(201);
       const time1 = Date.now() - start1;
 
       const start2 = Date.now();
-      await request(app.getHttpServer())
+      await request(app.getHttpServer() as import('http').Server)
         .post('/transactions')
         .set('Authorization', `Bearer ${token2}`)
         .set('idempotency-key', randomUUID())
-        .send({
-          amount: 10,
-          type: 'DEBIT',
-        })
+        .send({ amount: 10, type: 'DEBIT' })
         .expect(201);
       const time2 = Date.now() - start2;
 
       const start3 = Date.now();
-      await request(app.getHttpServer())
+      await request(app.getHttpServer() as import('http').Server)
         .post('/transactions')
         .set('Authorization', `Bearer ${token3}`)
         .set('idempotency-key', randomUUID())
-        .send({
-          amount: 10,
-          type: 'DEBIT',
-        })
+        .send({ amount: 10, type: 'DEBIT' })
         .expect(201);
       const time3 = Date.now() - start3;
 

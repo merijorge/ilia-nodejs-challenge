@@ -1,9 +1,21 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import * as jwt from 'jsonwebtoken';
+import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
-const request = require('supertest');
+
+interface TransactionResponse {
+  id: string;
+  userId: string;
+  amount: number;
+  type: string;
+  createdAt: string;
+}
+
+interface ErrorResponse {
+  message: string | string[];
+}
 
 describe('Wallet Validation (e2e)', () => {
   let app: INestApplication;
@@ -56,7 +68,7 @@ describe('Wallet Validation (e2e)', () => {
 
   describe('Transaction Validation', () => {
     it('should reject amount with more than 2 decimal places', async () => {
-      await request(app.getHttpServer())
+      await request(app.getHttpServer() as import('http').Server)
         .post('/transactions')
         .set('Authorization', `Bearer ${authToken}`)
         .set('idempotency-key', '660e8400-e29b-41d4-a716-446655440001')
@@ -68,7 +80,7 @@ describe('Wallet Validation (e2e)', () => {
     });
 
     it('should reject negative amount', async () => {
-      await request(app.getHttpServer())
+      await request(app.getHttpServer() as import('http').Server)
         .post('/transactions')
         .set('Authorization', `Bearer ${authToken}`)
         .set('idempotency-key', '660e8400-e29b-41d4-a716-446655440002')
@@ -80,7 +92,7 @@ describe('Wallet Validation (e2e)', () => {
     });
 
     it('should reject zero amount', async () => {
-      await request(app.getHttpServer())
+      await request(app.getHttpServer() as import('http').Server)
         .post('/transactions')
         .set('Authorization', `Bearer ${authToken}`)
         .set('idempotency-key', '660e8400-e29b-41d4-a716-446655440003')
@@ -92,7 +104,7 @@ describe('Wallet Validation (e2e)', () => {
     });
 
     it('should reject amount exceeding max limit', async () => {
-      await request(app.getHttpServer())
+      await request(app.getHttpServer() as import('http').Server)
         .post('/transactions')
         .set('Authorization', `Bearer ${authToken}`)
         .set('idempotency-key', '660e8400-e29b-41d4-a716-446655440004')
@@ -104,7 +116,7 @@ describe('Wallet Validation (e2e)', () => {
     });
 
     it('should reject invalid transaction type', async () => {
-      await request(app.getHttpServer())
+      await request(app.getHttpServer() as import('http').Server)
         .post('/transactions')
         .set('Authorization', `Bearer ${authToken}`)
         .set('idempotency-key', '660e8400-e29b-41d4-a716-446655440005')
@@ -116,7 +128,9 @@ describe('Wallet Validation (e2e)', () => {
     });
 
     it('should reject invalid idempotency key format in header', async () => {
-      const response = await request(app.getHttpServer())
+      const response = await request(
+        app.getHttpServer() as import('http').Server,
+      )
         .post('/transactions')
         .set('Authorization', `Bearer ${authToken}`)
         .set('idempotency-key', 'not-a-uuid')
@@ -126,13 +140,15 @@ describe('Wallet Validation (e2e)', () => {
         })
         .expect(400);
 
-      expect(response.body.message).toBe(
+      expect((response.body as ErrorResponse).message).toBe(
         'Idempotency-Key must be a valid UUID v4',
       );
     });
 
     it('should reject missing idempotency key header', async () => {
-      const response = await request(app.getHttpServer())
+      const response = await request(
+        app.getHttpServer() as import('http').Server,
+      )
         .post('/transactions')
         .set('Authorization', `Bearer ${authToken}`)
         .send({
@@ -141,11 +157,15 @@ describe('Wallet Validation (e2e)', () => {
         })
         .expect(400);
 
-      expect(response.body.message).toBe('Idempotency-Key header is required');
+      expect((response.body as ErrorResponse).message).toBe(
+        'Idempotency-Key header is required',
+      );
     });
 
     it('should reject unknown properties in body', async () => {
-      const response = await request(app.getHttpServer())
+      const response = await request(
+        app.getHttpServer() as import('http').Server,
+      )
         .post('/transactions')
         .set('Authorization', `Bearer ${authToken}`)
         .set('idempotency-key', '660e8400-e29b-41d4-a716-446655440006')
@@ -156,13 +176,17 @@ describe('Wallet Validation (e2e)', () => {
         })
         .expect(400);
 
-      const messageStr = JSON.stringify(response.body.message);
+      const messageStr = JSON.stringify(
+        (response.body as ErrorResponse).message,
+      );
       expect(messageStr).toContain('malicious_field');
       expect(messageStr).toContain('should not exist');
     });
 
     it('should reject idempotency key in body (header-only)', async () => {
-      const response = await request(app.getHttpServer())
+      const response = await request(
+        app.getHttpServer() as import('http').Server,
+      )
         .post('/transactions')
         .set('Authorization', `Bearer ${authToken}`)
         .set('idempotency-key', '660e8400-e29b-41d4-a716-446655440007')
@@ -173,13 +197,17 @@ describe('Wallet Validation (e2e)', () => {
         })
         .expect(400);
 
-      const messageStr = JSON.stringify(response.body.message);
+      const messageStr = JSON.stringify(
+        (response.body as ErrorResponse).message,
+      );
       expect(messageStr).toContain('idempotencyKey');
       expect(messageStr).toContain('should not exist');
     });
 
     it('should accept valid amount with 2 decimal places', async () => {
-      const response = await request(app.getHttpServer())
+      const response = await request(
+        app.getHttpServer() as import('http').Server,
+      )
         .post('/transactions')
         .set('Authorization', `Bearer ${authToken}`)
         .set('idempotency-key', '660e8400-e29b-41d4-a716-446655440009')
@@ -189,7 +217,7 @@ describe('Wallet Validation (e2e)', () => {
         })
         .expect(201);
 
-      expect(response.body.amount).toBe(100.99);
+      expect((response.body as TransactionResponse).amount).toBe(100.99);
     });
   });
 });

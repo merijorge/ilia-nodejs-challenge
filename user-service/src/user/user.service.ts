@@ -56,7 +56,7 @@ export class UserService {
     } catch (error) {
       this.logger.error(
         `Wallet creation failed for user: id=${user.id}, email=${user.email}`,
-        error.stack,
+        error instanceof Error ? error.stack : String(error),
       );
       this.logger.warn(`Initiating rollback: deleting user id=${user.id}`);
 
@@ -67,7 +67,9 @@ export class UserService {
       } catch (rollbackError) {
         this.logger.error(
           `Rollback failed: unable to delete user id=${user.id}`,
-          rollbackError.stack,
+          rollbackError instanceof Error
+            ? rollbackError.stack
+            : String(rollbackError),
         );
         throw new InternalServerErrorException(
           'User registration failed and could not be rolled back',

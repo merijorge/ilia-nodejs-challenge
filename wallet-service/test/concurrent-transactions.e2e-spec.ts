@@ -2,9 +2,17 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { randomUUID } from 'crypto';
 import * as jwt from 'jsonwebtoken';
+import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
-const request = require('supertest');
+
+interface TransactionResponse {
+  id: string;
+  userId: string;
+  amount: number;
+  type: string;
+  createdAt: string;
+}
 
 describe('Concurrent Transaction Tests (e2e)', () => {
   let app: INestApplication;
@@ -60,40 +68,33 @@ describe('Concurrent Transaction Tests (e2e)', () => {
       const token = generateToken(testUserId);
       const idempotencyKey = randomUUID();
 
-      // Send 5 identical concurrent requests
       const requests = Array.from({ length: 5 }, () =>
-        request(app.getHttpServer())
+        request(app.getHttpServer() as import('http').Server)
           .post('/transactions')
           .set('Authorization', `Bearer ${token}`)
           .set('idempotency-key', idempotencyKey)
-          .send({
-            amount: 100,
-            type: 'CREDIT',
-          }),
+          .send({ amount: 100, type: 'CREDIT' }),
       );
 
       const responses = await Promise.all(requests);
 
-      // All should return 201 (true idempotency)
       const successCount = responses.filter((r) => r.status === 201).length;
       expect(successCount).toBe(5);
 
-      // No conflicts should occur
       const conflictCount = responses.filter((r) => r.status === 409).length;
       expect(conflictCount).toBe(0);
 
-      // All should return the SAME transaction ID
-      const transactionIds = responses.map((r) => r.body.id);
+      const transactionIds = responses.map(
+        (r) => (r.body as TransactionResponse).id,
+      );
       const uniqueIds = new Set(transactionIds);
       expect(uniqueIds.size).toBe(1);
 
-      // Verify balance updated only once
       const wallet = await prisma.wallet.findUnique({
         where: { user_id: testUserId },
       });
       expect(Number(wallet!.balance)).toBe(1100);
 
-      // Verify only one transaction created
       const transactions = await prisma.transaction.findMany({
         where: { user_id: testUserId },
       });
@@ -107,34 +108,30 @@ describe('Concurrent Transaction Tests (e2e)', () => {
 
       const token = generateToken(testUserId);
 
-      // Send 10 concurrent requests with different keys
       const requests = Array.from({ length: 10 }, () =>
-        request(app.getHttpServer())
+        request(app.getHttpServer() as import('http').Server)
           .post('/transactions')
           .set('Authorization', `Bearer ${token}`)
           .set('idempotency-key', randomUUID())
-          .send({
-            amount: 50,
-            type: 'CREDIT',
-          }),
+          .send({ amount: 50, type: 'CREDIT' }),
       );
 
       const responses = await Promise.all(requests);
 
-      // All should succeed
       const unexpected = responses
         .filter((r) => r.status !== 201)
-        .map((r) => ({ status: r.status, body: r.body }));
+        .map((r) => ({
+          status: r.status,
+          body: r.body as TransactionResponse,
+        }));
 
       expect(unexpected).toEqual([]);
 
-      // Verify balance updated 10 times
       const wallet = await prisma.wallet.findUnique({
         where: { user_id: testUserId },
       });
       expect(Number(wallet!.balance)).toBe(1500);
 
-      // Verify 10 transactions created
       const transactions = await prisma.transaction.findMany({
         where: { user_id: testUserId },
       });
@@ -149,40 +146,33 @@ describe('Concurrent Transaction Tests (e2e)', () => {
       const token = generateToken(testUserId);
       const idempotencyKey = randomUUID();
 
-      // Send 3 concurrent DEBIT requests for 100 each
       const requests = Array.from({ length: 3 }, () =>
-        request(app.getHttpServer())
+        request(app.getHttpServer() as import('http').Server)
           .post('/transactions')
           .set('Authorization', `Bearer ${token}`)
           .set('idempotency-key', idempotencyKey)
-          .send({
-            amount: 100,
-            type: 'DEBIT',
-          }),
+          .send({ amount: 100, type: 'DEBIT' }),
       );
 
       const responses = await Promise.all(requests);
 
-      // All should return 201 (idempotent)
       const successCount = responses.filter((r) => r.status === 201).length;
       expect(successCount).toBe(3);
 
-      // No conflicts
       const conflictCount = responses.filter((r) => r.status === 409).length;
       expect(conflictCount).toBe(0);
 
-      // Verify they all returned the SAME transaction
-      const transactionIds = responses.map((r) => r.body.id);
+      const transactionIds = responses.map(
+        (r) => (r.body as TransactionResponse).id,
+      );
       const uniqueIds = new Set(transactionIds);
       expect(uniqueIds.size).toBe(1);
 
-      // Verify balance decreased only once
       const wallet = await prisma.wallet.findUnique({
         where: { user_id: testUserId },
       });
       expect(Number(wallet!.balance)).toBe(0);
 
-      // Verify only one transaction created
       const transactions = await prisma.transaction.findMany({
         where: { user_id: testUserId },
       });
@@ -196,46 +186,39 @@ describe('Concurrent Transaction Tests (e2e)', () => {
 
       const token = generateToken(testUserId);
 
-      // 50 concurrent transactions: 25 credits + 25 debits
       const requests = [
         ...Array.from({ length: 25 }, () =>
-          request(app.getHttpServer())
+          request(app.getHttpServer() as import('http').Server)
             .post('/transactions')
             .set('Authorization', `Bearer ${token}`)
             .set('idempotency-key', randomUUID())
-            .send({
-              amount: 10,
-              type: 'CREDIT',
-            }),
+            .send({ amount: 10, type: 'CREDIT' }),
         ),
         ...Array.from({ length: 25 }, () =>
-          request(app.getHttpServer())
+          request(app.getHttpServer() as import('http').Server)
             .post('/transactions')
             .set('Authorization', `Bearer ${token}`)
             .set('idempotency-key', randomUUID())
-            .send({
-              amount: 10,
-              type: 'DEBIT',
-            }),
+            .send({ amount: 10, type: 'DEBIT' }),
         ),
       ];
 
       const responses = await Promise.all(requests);
 
-      // All should succeed (different keys)
       const unexpected = responses
         .filter((r) => r.status !== 201)
-        .map((r) => ({ status: r.status, body: r.body }));
+        .map((r) => ({
+          status: r.status,
+          body: r.body as TransactionResponse,
+        }));
 
       expect(unexpected).toEqual([]);
 
-      // Verify final balance
       const wallet = await prisma.wallet.findUnique({
         where: { user_id: testUserId },
       });
       expect(Number(wallet!.balance)).toBe(10000);
 
-      // Verify 50 transactions created
       const transactions = await prisma.transaction.findMany({
         where: { user_id: testUserId },
       });
@@ -250,45 +233,38 @@ describe('Concurrent Transaction Tests (e2e)', () => {
       const token = generateToken(testUserId);
       const idempotencyKey = randomUUID();
 
-      // First request
-      const firstResponse = await request(app.getHttpServer())
+      const firstResponse = await request(
+        app.getHttpServer() as import('http').Server,
+      )
         .post('/transactions')
         .set('Authorization', `Bearer ${token}`)
         .set('idempotency-key', idempotencyKey)
-        .send({
-          amount: 100,
-          type: 'CREDIT',
-        })
+        .send({ amount: 100, type: 'CREDIT' })
         .expect(201);
 
-      const firstTransactionId = firstResponse.body.id;
+      const firstTransactionId = (firstResponse.body as TransactionResponse).id;
 
-      // Wait a bit to ensure non-concurrent
       await new Promise((resolve) => setTimeout(resolve, 100));
 
-      // Second request with same key (non-concurrent duplicate)
-      const secondResponse = await request(app.getHttpServer())
+      const secondResponse = await request(
+        app.getHttpServer() as import('http').Server,
+      )
         .post('/transactions')
         .set('Authorization', `Bearer ${token}`)
         .set('idempotency-key', idempotencyKey)
-        .send({
-          amount: 100,
-          type: 'CREDIT',
-        })
+        .send({ amount: 100, type: 'CREDIT' })
         .expect(201);
 
-      // Should return the SAME transaction
-      expect(secondResponse.body.id).toBe(firstTransactionId);
-      expect(secondResponse.body.amount).toBe(100);
-      expect(secondResponse.body.type).toBe('CREDIT');
+      const secondBody = secondResponse.body as TransactionResponse;
+      expect(secondBody.id).toBe(firstTransactionId);
+      expect(secondBody.amount).toBe(100);
+      expect(secondBody.type).toBe('CREDIT');
 
-      // Verify balance updated only once
       const wallet = await prisma.wallet.findUnique({
         where: { user_id: testUserId },
       });
       expect(Number(wallet!.balance)).toBe(1100);
 
-      // Verify only one transaction exists
       const transactions = await prisma.transaction.findMany({
         where: { user_id: testUserId },
       });
@@ -304,16 +280,12 @@ describe('Concurrent Transaction Tests (e2e)', () => {
 
       const token = generateToken(testUserId);
 
-      // Fire 3 concurrent debits of 80 each (total 240 > balance 100)
       const requests = Array.from({ length: 3 }, () =>
-        request(app.getHttpServer())
+        request(app.getHttpServer() as import('http').Server)
           .post('/transactions')
           .set('Authorization', `Bearer ${token}`)
           .set('idempotency-key', randomUUID())
-          .send({
-            amount: 80,
-            type: 'DEBIT',
-          }),
+          .send({ amount: 80, type: 'DEBIT' }),
       );
 
       const responses = await Promise.all(requests);
@@ -321,19 +293,16 @@ describe('Concurrent Transaction Tests (e2e)', () => {
       const successCount = responses.filter((r) => r.status === 201).length;
       const failCount = responses.filter((r) => r.status === 400).length;
 
-      // Exactly one should succeed — only one debit can fit in the balance
       expect(successCount).toBeGreaterThanOrEqual(1);
       expect(failCount).toBeGreaterThanOrEqual(1);
       expect(successCount + failCount).toBe(3);
       expect(responses.every((r) => [201, 400].includes(r.status))).toBe(true);
 
-      // Balance should reflect exactly one successful debit
       const wallet = await prisma.wallet.findUnique({
         where: { user_id: testUserId },
       });
       expect(Number(wallet!.balance)).toBe(100 - successCount * 80);
 
-      // Only successful transactions should be persisted
       const debitTransactions = await prisma.transaction.findMany({
         where: { user_id: testUserId, type: 'DEBIT' },
       });

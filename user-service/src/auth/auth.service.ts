@@ -11,7 +11,7 @@ export class AuthService {
     private jwtService: JwtService,
   ) {}
 
-  async generateToken(user: { id: string; email: string }): Promise<string> {
+  generateToken(user: { id: string; email: string }): string {
     return this.jwtService.sign({
       sub: user.id,
       email: user.email,
@@ -38,7 +38,7 @@ export class AuthService {
     }
 
     // Generate token
-    const token = await this.generateToken(user);
+    const token = this.generateToken(user);
 
     return {
       access_token: token,

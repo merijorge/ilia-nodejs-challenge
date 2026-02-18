@@ -10,7 +10,7 @@ import {
 } from 'class-validator';
 
 function IsDecimal(decimals: number, validationOptions?: ValidationOptions) {
-  return function (object: Object, propertyName: string) {
+  return function (object: object, propertyName: string) {
     registerDecorator({
       name: 'isDecimal',
       target: object.constructor,
@@ -19,14 +19,14 @@ function IsDecimal(decimals: number, validationOptions?: ValidationOptions) {
       options: validationOptions,
       validator: {
         validate(value: any, args: ValidationArguments) {
-          const [maxDecimals] = args.constraints;
+          const [maxDecimals] = args.constraints as [number];
           if (typeof value !== 'number') return false;
           const decimalPart = value.toString().split('.')[1];
           if (!decimalPart) return true;
           return decimalPart.length <= maxDecimals;
         },
         defaultMessage(args: ValidationArguments) {
-          const [maxDecimals] = args.constraints;
+          const [maxDecimals] = args.constraints as [number];
           return `${args.property} must have at most ${maxDecimals} decimal places`;
         },
       },

@@ -1,8 +1,25 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
+import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
-const request = require('supertest');
+
+interface AuthResponse {
+  access_token: string;
+  user: {
+    id: string;
+    email: string;
+    first_name: string;
+    last_name: string;
+  };
+}
+
+interface UserProfileResponse {
+  id: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+}
 
 describe('Input Validation (e2e)', () => {
   let app: INestApplication;
@@ -37,7 +54,7 @@ describe('Input Validation (e2e)', () => {
 
   describe('Registration Validation', () => {
     it('should reject invalid email format', async () => {
-      await request(app.getHttpServer())
+      await request(app.getHttpServer() as import('http').Server)
         .post('/auth/register')
         .send({
           email: 'invalid-email',
@@ -49,7 +66,7 @@ describe('Input Validation (e2e)', () => {
     });
 
     it('should reject weak password (no uppercase)', async () => {
-      await request(app.getHttpServer())
+      await request(app.getHttpServer() as import('http').Server)
         .post('/auth/register')
         .send({
           email: 'test@example.com',
@@ -61,7 +78,7 @@ describe('Input Validation (e2e)', () => {
     });
 
     it('should reject weak password (no lowercase)', async () => {
-      await request(app.getHttpServer())
+      await request(app.getHttpServer() as import('http').Server)
         .post('/auth/register')
         .send({
           email: 'test@example.com',
@@ -73,7 +90,7 @@ describe('Input Validation (e2e)', () => {
     });
 
     it('should reject weak password (no number)', async () => {
-      await request(app.getHttpServer())
+      await request(app.getHttpServer() as import('http').Server)
         .post('/auth/register')
         .send({
           email: 'test@example.com',
@@ -85,7 +102,7 @@ describe('Input Validation (e2e)', () => {
     });
 
     it('should reject password too short', async () => {
-      await request(app.getHttpServer())
+      await request(app.getHttpServer() as import('http').Server)
         .post('/auth/register')
         .send({
           email: 'test@example.com',
@@ -98,7 +115,7 @@ describe('Input Validation (e2e)', () => {
 
     it('should reject password too long', async () => {
       const longPassword = 'A1' + 'a'.repeat(127);
-      await request(app.getHttpServer())
+      await request(app.getHttpServer() as import('http').Server)
         .post('/auth/register')
         .send({
           email: 'test@example.com',
@@ -110,7 +127,7 @@ describe('Input Validation (e2e)', () => {
     });
 
     it('should reject name with numbers', async () => {
-      await request(app.getHttpServer())
+      await request(app.getHttpServer() as import('http').Server)
         .post('/auth/register')
         .send({
           email: 'test@example.com',
@@ -122,7 +139,7 @@ describe('Input Validation (e2e)', () => {
     });
 
     it('should reject name with special characters', async () => {
-      await request(app.getHttpServer())
+      await request(app.getHttpServer() as import('http').Server)
         .post('/auth/register')
         .send({
           email: 'test@example.com',
@@ -135,7 +152,7 @@ describe('Input Validation (e2e)', () => {
 
     it('should reject name too long', async () => {
       const longName = 'a'.repeat(101);
-      await request(app.getHttpServer())
+      await request(app.getHttpServer() as import('http').Server)
         .post('/auth/register')
         .send({
           email: 'test@example.com',
@@ -147,7 +164,9 @@ describe('Input Validation (e2e)', () => {
     });
 
     it('should normalize email to lowercase', async () => {
-      const response = await request(app.getHttpServer())
+      const response = await request(
+        app.getHttpServer() as import('http').Server,
+      )
         .post('/auth/register')
         .send({
           email: 'Test@Example.COM',
@@ -157,11 +176,15 @@ describe('Input Validation (e2e)', () => {
         })
         .expect(201);
 
-      expect(response.body.user.email).toBe('test@example.com');
+      expect((response.body as AuthResponse).user.email).toBe(
+        'test@example.com',
+      );
     });
 
     it('should trim whitespace from names', async () => {
-      const response = await request(app.getHttpServer())
+      const response = await request(
+        app.getHttpServer() as import('http').Server,
+      )
         .post('/auth/register')
         .send({
           email: 'test@example.com',
@@ -171,12 +194,13 @@ describe('Input Validation (e2e)', () => {
         })
         .expect(201);
 
-      expect(response.body.user.first_name).toBe('John');
-      expect(response.body.user.last_name).toBe('Doe');
+      const body = (response.body as AuthResponse).user;
+      expect(body.first_name).toBe('John');
+      expect(body.last_name).toBe('Doe');
     });
 
     it('should accept valid names with hyphens and apostrophes', async () => {
-      await request(app.getHttpServer())
+      await request(app.getHttpServer() as import('http').Server)
         .post('/auth/register')
         .send({
           email: 'test@example.com',
@@ -188,7 +212,7 @@ describe('Input Validation (e2e)', () => {
     });
 
     it('should reject unknown properties', async () => {
-      await request(app.getHttpServer())
+      await request(app.getHttpServer() as import('http').Server)
         .post('/auth/register')
         .send({
           email: 'test@example.com',
@@ -205,7 +229,9 @@ describe('Input Validation (e2e)', () => {
     let authToken: string;
 
     beforeEach(async () => {
-      const response = await request(app.getHttpServer())
+      const response = await request(
+        app.getHttpServer() as import('http').Server,
+      )
         .post('/auth/register')
         .send({
           email: 'test@example.com',
@@ -213,11 +239,11 @@ describe('Input Validation (e2e)', () => {
           first_name: 'John',
           last_name: 'Doe',
         });
-      authToken = response.body.access_token;
+      authToken = (response.body as AuthResponse).access_token;
     });
 
     it('should reject invalid name format on update', async () => {
-      await request(app.getHttpServer())
+      await request(app.getHttpServer() as import('http').Server)
         .put('/user/profile')
         .set('Authorization', `Bearer ${authToken}`)
         .send({
@@ -227,7 +253,9 @@ describe('Input Validation (e2e)', () => {
     });
 
     it('should trim whitespace on profile update', async () => {
-      const response = await request(app.getHttpServer())
+      const response = await request(
+        app.getHttpServer() as import('http').Server,
+      )
         .put('/user/profile')
         .set('Authorization', `Bearer ${authToken}`)
         .send({
@@ -235,7 +263,7 @@ describe('Input Validation (e2e)', () => {
         })
         .expect(200);
 
-      expect(response.body.first_name).toBe('Jane');
+      expect((response.body as UserProfileResponse).first_name).toBe('Jane');
     });
   });
 });

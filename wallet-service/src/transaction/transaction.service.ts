@@ -15,6 +15,9 @@ interface CreateTransactionInput {
   idempotencyKey: string;
 }
 
+class WalletNotFoundError extends Error {}
+class InsufficientFundsError extends Error {}
+
 @Injectable()
 export class TransactionService {
   private readonly logger = new Logger(TransactionService.name);
@@ -31,10 +34,7 @@ export class TransactionService {
         });
 
         if (!wallet) {
-          this.logger.error(
-            `Wallet not found for transaction: userId=${userId}`,
-          );
-          throw new NotFoundException('Wallet not found');
+          throw new WalletNotFoundError();
         }
 
         const amount = new Decimal(dto.amount);
@@ -67,10 +67,7 @@ export class TransactionService {
           });
 
           if (updateResult.count === 0) {
-            this.logger.warn(
-              `Insufficient funds: user=${userId}, attempted=${dto.amount}`,
-            );
-            throw new BadRequestException('Insufficient funds');
+            throw new InsufficientFundsError();
           }
 
           this.logger.log(
@@ -88,6 +85,18 @@ export class TransactionService {
 
       return result;
     } catch (error) {
+      if (error instanceof WalletNotFoundError) {
+        this.logger.error(`Wallet not found for transaction: userId=${userId}`);
+        throw new NotFoundException('Wallet not found');
+      }
+
+      if (error instanceof InsufficientFundsError) {
+        this.logger.warn(
+          `Insufficient funds: user=${userId}, attempted=${dto.amount}`,
+        );
+        throw new BadRequestException('Insufficient funds');
+      }
+
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === 'P2002'
@@ -115,7 +124,7 @@ export class TransactionService {
             this.logger.warn(
               `Idempotency key reused with different payload: ` +
                 `user=${userId}, key=${dto.idempotencyKey}, ` +
-                `original=(type=${existingTransaction.type}, amount=${existingTransaction.amount}), ` +
+                `original=(type=${existingTransaction.type}, amount=${existingTransaction.amount.toString()}), ` +
                 `attempted=(type=${dto.type}, amount=${dto.amount})`,
             );
 

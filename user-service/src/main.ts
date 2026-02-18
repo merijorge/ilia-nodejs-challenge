@@ -35,18 +35,20 @@ async function bootstrap() {
   logger.log(`User Service running on port ${port}`);
 
   // Graceful shutdown handlers
-  process.on('SIGTERM', async () => {
+  process.on('SIGTERM', () => {
     logger.log('SIGTERM signal received: closing HTTP server');
-    await app.close();
-    logger.log('HTTP server closed');
-    process.exit(0);
+    void app.close().then(() => {
+      logger.log('HTTP server closed');
+      process.exit(0);
+    });
   });
 
-  process.on('SIGINT', async () => {
+  process.on('SIGINT', () => {
     logger.log('SIGINT signal received: closing HTTP server');
-    await app.close();
-    logger.log('HTTP server closed');
-    process.exit(0);
+    void app.close().then(() => {
+      logger.log('HTTP server closed');
+      process.exit(0);
+    });
   });
 
   process.on('uncaughtException', (error) => {
@@ -60,4 +62,4 @@ async function bootstrap() {
   });
 }
 
-bootstrap();
+void bootstrap();

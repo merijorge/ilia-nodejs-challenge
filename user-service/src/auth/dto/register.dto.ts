@@ -13,7 +13,7 @@ export class RegisterDto {
   @IsEmail({}, { message: 'Email must be a valid email address' })
   @IsNotEmpty({ message: 'Email is required' })
   @MaxLength(255, { message: 'Email must not exceed 255 characters' })
-  @Transform(({ value }) => value?.toLowerCase().trim())
+  @Transform(({ value }: { value: string }) => value?.toLowerCase().trim())
   email: string;
 
   @IsString({ message: 'Password must be a string' })
@@ -35,7 +35,7 @@ export class RegisterDto {
     message:
       'First name can only contain letters, spaces, hyphens, and apostrophes',
   })
-  @Transform(({ value }) => value?.trim())
+  @Transform(({ value }: { value: string }) => value?.trim())
   first_name: string;
 
   @IsString({ message: 'Last name must be a string' })
@@ -45,6 +45,6 @@ export class RegisterDto {
     message:
       'Last name can only contain letters, spaces, hyphens, and apostrophes',
   })
-  @Transform(({ value }) => value?.trim())
+  @Transform(({ value }: { value: string }) => value?.trim())
   last_name: string;
 }

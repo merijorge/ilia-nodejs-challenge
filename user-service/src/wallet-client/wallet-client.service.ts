@@ -47,13 +47,13 @@ export class WalletClientService {
     );
   }
 
-  async createWallet(userId: string): Promise<any> {
+  async createWallet(userId: string): Promise<void> {
     const token = this.generateInternalToken();
 
     this.logger.debug(`Creating wallet for user: id=${userId}`);
 
     try {
-      const response = await firstValueFrom(
+      await firstValueFrom(
         this.httpService.post(
           `${this.walletServiceUrl}/wallet/internal/create`,
           { userId: userId },
@@ -68,17 +68,19 @@ export class WalletClientService {
       );
 
       this.logger.log(`Wallet created successfully: userId=${userId}`);
-      return response.data;
     } catch (error) {
       return this.handleWalletServiceError(error, userId);
     }
   }
 
-  private handleWalletServiceError(error: any, userId: string): never {
+  private handleWalletServiceError(error: unknown, userId: string): never {
     const axiosError = error as AxiosError;
+    const nodeError = error as NodeJS.ErrnoException;
 
-    // Handle timeout errors
-    if (error.name === 'TimeoutError' || error.code === 'ETIMEDOUT') {
+    if (
+      (error instanceof Error && error.name === 'TimeoutError') ||
+      nodeError.code === 'ETIMEDOUT'
+    ) {
       this.logger.error(
         `Wallet service timeout: userId=${userId}, timeout=${this.REQUEST_TIMEOUT}ms`,
       );
@@ -86,7 +88,7 @@ export class WalletClientService {
     }
 
     // Handle network/connection errors (service down)
-    if (axiosError.code === 'ECONNREFUSED') {
+    if (nodeError.code === 'ECONNREFUSED') {
       this.logger.error(
         `Wallet service connection refused: userId=${userId}, url=${this.walletServiceUrl}`,
       );
@@ -95,7 +97,7 @@ export class WalletClientService {
       );
     }
 
-    if (axiosError.code === 'ENOTFOUND') {
+    if (nodeError.code === 'ENOTFOUND') {
       this.logger.error(
         `Wallet service DNS lookup failed: userId=${userId}, url=${this.walletServiceUrl}`,
       );
@@ -130,9 +132,11 @@ export class WalletClientService {
     }
 
     // Unknown error
+    const message = error instanceof Error ? error.message : String(error);
+    const stack = error instanceof Error ? error.stack : undefined;
     this.logger.error(
-      `Unknown wallet service error: userId=${userId}, error=${error.message}`,
-      error.stack,
+      `Unknown wallet service error: userId=${userId}, error=${message}`,
+      stack,
     );
 
     throw new ServiceUnavailableException(
