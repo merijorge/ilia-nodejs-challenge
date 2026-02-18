@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/stores/authStore";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
+import type { AxiosError } from "axios";
 import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { Link, useNavigate } from "react-router-dom";
@@ -50,7 +51,7 @@ export const RegisterPage = () => {
       authLogin(data.access_token, data.user);
       navigate("/dashboard");
     },
-    onError: (error: any) => {
+    onError: (error: AxiosError<{ message: string }>) => {
       const status = error?.response?.status;
       if (status === 409) {
         toast.error(t("errors.emailTaken"));

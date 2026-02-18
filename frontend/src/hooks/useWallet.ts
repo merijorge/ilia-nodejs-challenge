@@ -1,5 +1,6 @@
 import { createTransaction, getBalance, getTransactions, type CreateTransactionPayload } from "@/api/wallet";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { AxiosError } from "axios";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
@@ -31,7 +32,7 @@ export const useCreateTransaction = () => {
       queryClient.invalidateQueries({ queryKey: WALLET_KEYS.transactions });
       toast.success(t("transactions.success"));
     },
-    onError: (error: any) => {
+    onError: (error: AxiosError<{ message: string }>) => {
       const status = error?.response?.status;
       const message = error?.response?.data?.message;
       if (status === 400 && message === "Insufficient funds") {
