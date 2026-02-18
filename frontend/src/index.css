@@ -703,3 +703,119 @@ body {
     gap: 1rem;
   }
 }
+
+/* ─── Transactions Page ───────────────────────────────── */
+
+.transactions-page {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.create-tx-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 2rem;
+  max-width: 480px;
+}
+
+.create-tx-title {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+  margin-bottom: 0.25rem;
+}
+
+.create-tx-subtitle {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  font-weight: 300;
+  margin-bottom: 1.75rem;
+}
+
+.create-tx-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.type-toggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  background: var(--bg-elevated);
+  border-radius: 8px;
+  padding: 0.25rem;
+}
+
+.type-btn {
+  padding: 0.625rem;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-family: var(--font-body);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.type-btn:hover:not(.type-btn-active) {
+  color: var(--text-secondary);
+  background: var(--bg-surface);
+}
+
+.type-btn-active {
+  color: #0A0A0B !important;
+}
+
+.type-btn-credit.type-btn-active {
+  background: var(--success);
+}
+
+.type-btn-debit.type-btn-active {
+  background: var(--error);
+}
+
+.amount-input-wrap {
+  position: relative;
+}
+
+.amount-currency-symbol {
+  position: absolute;
+  left: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  font-size: 0.9375rem;
+  pointer-events: none;
+}
+
+.amount-input {
+  padding-left: 2rem !important;
+}
+
+.amount-input::-webkit-outer-spin-button,
+.amount-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.amount-input[type=number] {
+  -moz-appearance: textfield;
+}
+
+.tx-count {
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+}
+
+@media (max-width: 768px) {
+  .create-tx-card {
+    max-width: 100%;
+  }
+}
