@@ -1,9 +1,11 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { AppLayout } from "./components/layout/AppLayout";
 import { Toaster } from "./components/ui/sonner";
 import "./i18n";
 import { LoginPage } from "./pages/auth/LoginPage";
 import { RegisterPage } from "./pages/auth/RegisterPage";
+import { DashboardPage } from "./pages/dashboard/DashboardPage";
 import { AuthProvider } from "./stores/AuthProvider";
 import { useAuth } from "./stores/authStore";
 
@@ -50,21 +52,15 @@ function App() {
               }
             />
             <Route
-              path="/dashboard"
               element={
                 <ProtectedRoute>
-                  <div>Dashboard coming soon</div>
+                  <AppLayout />
                 </ProtectedRoute>
               }
-            />
-            <Route
-              path="/transactions"
-              element={
-                <ProtectedRoute>
-                  <div>Transactions coming soon</div>
-                </ProtectedRoute>
-              }
-            />
+            >
+              <Route path="/dashboard" element={<DashboardPage />} />
+              <Route path="/transactions" element={<div>Transactions coming soon</div>} />
+            </Route>
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </BrowserRouter>
