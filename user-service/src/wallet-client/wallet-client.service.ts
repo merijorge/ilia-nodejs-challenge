@@ -9,7 +9,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { AxiosError } from 'axios';
-import { firstValueFrom, timeout } from 'rxjs';
+import { firstValueFrom } from 'rxjs';
 
 @Injectable()
 export class WalletClientService {
@@ -54,19 +54,17 @@ export class WalletClientService {
 
     try {
       const response = await firstValueFrom(
-        this.httpService
-          .post(
-            `${this.walletServiceUrl}/wallet/internal/create`,
-            { userId: userId },
-            {
-              headers: {
-                Authorization: `Bearer ${token}`,
-                'Content-Type': 'application/json',
-              },
-              timeout: this.REQUEST_TIMEOUT,
+        this.httpService.post(
+          `${this.walletServiceUrl}/wallet/internal/create`,
+          { userId: userId },
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              'Content-Type': 'application/json',
             },
-          )
-          .pipe(timeout(this.REQUEST_TIMEOUT)),
+            timeout: this.REQUEST_TIMEOUT,
+          },
+        ),
       );
 
       this.logger.log(`Wallet created successfully: userId=${userId}`);

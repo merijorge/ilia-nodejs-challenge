@@ -2,7 +2,6 @@ import {
   Body,
   Controller,
   Get,
-  HttpCode,
   Post,
   Request,
   UseGuards,
@@ -27,7 +26,6 @@ export class TransactionController {
   constructor(private readonly transactionService: TransactionService) {}
 
   @Post()
-  @HttpCode(201)
   @ApiOperation({
     summary: 'Create transaction (CREDIT or DEBIT)',
     description:
