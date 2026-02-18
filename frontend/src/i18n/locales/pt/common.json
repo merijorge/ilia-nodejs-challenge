@@ -1,0 +1,74 @@
+{
+  "app": {
+    "name": "Ília Digital Wallet"
+  },
+  "nav": {
+    "dashboard": "Painel",
+    "transactions": "Transações",
+    "logout": "Sair"
+  },
+  "brand": {
+    "tagline": "Seu patrimônio, gerenciado com elegância.",
+    "features": ["Autenticação JWT Segura", "Saldo em Tempo Real", "Histórico de Transações"]
+  },
+  "auth": {
+    "login": "Entrar",
+    "register": "Cadastrar",
+    "email": "E-mail",
+    "password": "Senha",
+    "firstName": "Nome",
+    "lastName": "Sobrenome",
+    "loginTitle": "Bem-vindo de volta",
+    "loginSubtitle": "Entre na sua carteira",
+    "registerTitle": "Criar conta",
+    "registerSubtitle": "Comece a gerenciar sua carteira",
+    "noAccount": "Não tem uma conta?",
+    "hasAccount": "Já tem uma conta?",
+    "signUp": "Cadastrar",
+    "signIn": "Entrar"
+  },
+  "dashboard": {
+    "greeting": "Bom dia, {{name}}.",
+    "subtitle": "Aqui está sua visão financeira.",
+    "viewAll": "Ver tudo",
+    "balance": "Saldo Atual",
+    "lastUpdated": "Última atualização",
+    "recentTransactions": "Transações Recentes",
+    "noTransactions": "Nenhuma transação ainda"
+  },
+  "transactions": {
+    "create": "Nova Transação",
+    "createSubtitle": "Adicione um crédito ou débito à sua carteira",
+    "amount": "Valor",
+    "type": "Tipo",
+    "credit": "Crédito",
+    "debit": "Débito",
+    "submit": "Enviar",
+    "success": "Transação criada com sucesso",
+    "history": "Histórico de Transações",
+    "empty": "Nenhuma transação encontrada",
+    "count_one": "{{count}} transação",
+    "count_other": "{{count}} transações",
+    "balanceError": "Não foi possível carregar o saldo"
+  },
+  "errors": {
+    "generic": "Algo deu errado. Tente novamente.",
+    "insufficientFunds": "Saldo insuficiente",
+    "invalidCredentials": "E-mail ou senha inválidos",
+    "emailTaken": "E-mail já em uso",
+    "required": "Este campo é obrigatório",
+    "invalidEmail": "Endereço de e-mail inválido",
+    "passwordStrength": "A senha deve conter maiúsculas, minúsculas e um número",
+    "minLength": "Mínimo {{count}} caracteres",
+    "maxLength": "Máximo {{count}} caracteres",
+    "minAmount": "Valor mínimo é 0,01",
+    "maxAmount": "Valor máximo é 1.000.000"
+  },
+  "common": {
+    "loading": "Carregando...",
+    "save": "Salvar",
+    "cancel": "Cancelar",
+    "back": "Voltar",
+    "currency": "BRL"
+  }
+}

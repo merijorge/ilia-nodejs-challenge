@@ -1,0 +1,74 @@
+{
+  "app": {
+    "name": "Ília Digital Wallet"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "transactions": "Transactions",
+    "logout": "Logout"
+  },
+  "brand": {
+    "tagline": "Your wealth, beautifully managed.",
+    "features": ["Secure JWT Authentication", "Real-time Balance", "Transaction History"]
+  },
+  "auth": {
+    "login": "Login",
+    "register": "Register",
+    "email": "Email",
+    "password": "Password",
+    "firstName": "First Name",
+    "lastName": "Last Name",
+    "loginTitle": "Welcome back",
+    "loginSubtitle": "Sign in to your wallet",
+    "registerTitle": "Create account",
+    "registerSubtitle": "Start managing your wallet",
+    "noAccount": "Don't have an account?",
+    "hasAccount": "Already have an account?",
+    "signUp": "Sign up",
+    "signIn": "Sign in"
+  },
+  "dashboard": {
+    "greeting": "Good day, {{name}}.",
+    "subtitle": "Here's your financial overview.",
+    "viewAll": "View all",
+    "balance": "Current Balance",
+    "lastUpdated": "Last updated",
+    "recentTransactions": "Recent Transactions",
+    "noTransactions": "No transactions yet",
+    "balanceError": "Unable to load balance"
+  },
+  "transactions": {
+    "create": "New Transaction",
+    "createSubtitle": "Add a credit or debit to your wallet",
+    "amount": "Amount",
+    "type": "Type",
+    "credit": "Credit",
+    "debit": "Debit",
+    "submit": "Submit",
+    "success": "Transaction created successfully",
+    "history": "Transaction History",
+    "empty": "No transactions found",
+    "count_one": "{{count}} transaction",
+    "count_other": "{{count}} transactions"
+  },
+  "errors": {
+    "generic": "Something went wrong. Please try again.",
+    "insufficientFunds": "Insufficient funds",
+    "invalidCredentials": "Invalid email or password",
+    "emailTaken": "Email already in use",
+    "required": "This field is required",
+    "invalidEmail": "Invalid email address",
+    "passwordStrength": "Password must contain uppercase, lowercase and a number",
+    "minLength": "Minimum {{count}} characters",
+    "maxLength": "Maximum {{count}} characters",
+    "minAmount": "Minimum amount is 0.01",
+    "maxAmount": "Maximum amount is 1,000,000"
+  },
+  "common": {
+    "loading": "Loading...",
+    "save": "Save",
+    "cancel": "Cancel",
+    "back": "Back",
+    "currency": "USD"
+  }
+}
