@@ -23,6 +23,13 @@ async function bootstrap() {
   // Enable graceful shutdown
   app.enableShutdownHooks();
 
+  app.enableCors({
+    origin: 'http://localhost:5173',
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Idempotency-Key'],
+    credentials: true,
+  });
+
   const config = new DocumentBuilder()
     .setTitle('Wallet Service API')
     .setDescription('Secure idempotent wallet transactions')
