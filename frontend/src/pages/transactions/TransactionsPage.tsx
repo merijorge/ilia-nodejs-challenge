@@ -40,26 +40,31 @@ const formatDate = (dateStr: string) =>
     minute: "2-digit",
   }).format(new Date(dateStr));
 
-const TransactionRow = ({ tx }: { tx: Transaction }) => (
-  <div className="tx-row">
-    <div className="tx-type-indicator">
-      <span className={`tx-dot tx-dot-${tx.type.toLowerCase()}`} />
+const TransactionRow = ({ tx }: { tx: Transaction }) => {
+  const { t } = useTranslation();
+  return (
+    <div className="tx-row">
+      <div className="tx-type-indicator">
+        <span className={`tx-dot tx-dot-${tx.type.toLowerCase()}`} />
+      </div>
+      <div className="tx-info">
+        <span className="tx-type-label">
+          {tx.type === "CREDIT" ? t("transactions.credit") : t("transactions.debit")}
+        </span>
+        <span className="tx-date">{formatDate(tx.createdAt)}</span>
+      </div>
+      <div className="tx-amount-wrap">
+        <span className={`tx-amount tx-amount-${tx.type.toLowerCase()}`}>
+          {tx.type === "CREDIT" ? "+" : "-"}
+          {formatCurrency(tx.amount)}
+        </span>
+        <Badge variant="outline" className={`tx-badge tx-badge-${tx.type.toLowerCase()}`}>
+          {tx.type === "CREDIT" ? t("transactions.credit") : t("transactions.debit")}
+        </Badge>
+      </div>
     </div>
-    <div className="tx-info">
-      <span className="tx-type-label">{tx.type === "CREDIT" ? "Credit" : "Debit"}</span>
-      <span className="tx-date">{formatDate(tx.createdAt)}</span>
-    </div>
-    <div className="tx-amount-wrap">
-      <span className={`tx-amount tx-amount-${tx.type.toLowerCase()}`}>
-        {tx.type === "CREDIT" ? "+" : "-"}
-        {formatCurrency(tx.amount)}
-      </span>
-      <Badge variant="outline" className={`tx-badge tx-badge-${tx.type.toLowerCase()}`}>
-        {tx.type}
-      </Badge>
-    </div>
-  </div>
-);
+  );
+};
 
 export const TransactionsPage = () => {
   const { t } = useTranslation();
@@ -91,7 +96,7 @@ export const TransactionsPage = () => {
       {/* Create Transaction Form */}
       <div className="create-tx-card">
         <h2 className="create-tx-title">{t("transactions.create")}</h2>
-        <p className="create-tx-subtitle">Add a credit or debit to your wallet</p>
+        <p className="create-tx-subtitle">{t("transactions.createSubtitle")}</p>
 
         <form onSubmit={handleSubmit(onSubmit)} className="create-tx-form" noValidate>
           {/* Type Toggle */}
@@ -140,12 +145,7 @@ export const TransactionsPage = () => {
       <div className="recent-section">
         <div className="recent-header">
           <h2 className="recent-title">{t("transactions.history")}</h2>
-          {transactions && (
-            <span className="tx-count">
-              {transactions.length} transaction
-              {transactions.length !== 1 ? "s" : ""}
-            </span>
-          )}
+          {transactions && <span className="tx-count">{t("transactions.count", { count: transactions.length })}</span>}
         </div>
 
         <div className="tx-list">
