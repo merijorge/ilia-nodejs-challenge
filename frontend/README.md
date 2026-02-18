@@ -1,6 +1,6 @@
 # Ilia Wallet - Frontend
 
-![Tests](https://img.shields.io/badge/tests-17%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-18%20passing-brightgreen)
 ![React](https://img.shields.io/badge/react-18-61DAFB)
 ![TypeScript](https://img.shields.io/badge/typescript-5.0-blue)
 ![Vite](https://img.shields.io/badge/vite-7-646CFF)
@@ -95,9 +95,9 @@ cd frontend
 npm run test:run
 ```
 
-**Expected:** 17 tests passing across 3 test suites:
+**Expected:** 18 tests passing across 3 test suites:
 
-- `authSchemas.test.ts` - Login and register Zod validation (10 tests)
+- `authSchemas.test.tsx` - Login and register Zod validation (11 tests)
 - `LanguageSwitcher.test.tsx` - Language toggle component (3 tests)
 - `useWallet.test.tsx` - Balance and transaction hooks with mocked API (4 tests)
 
@@ -105,7 +105,7 @@ npm run test:run
 
 | Area                 | Tests | What is covered                                                  |
 | -------------------- | ----- | ---------------------------------------------------------------- |
-| Auth validation      | 10    | Email format, password strength, name rules, accented characters |
+| Auth validation      | 11    | Email format, password strength, name rules, accented characters |
 | Language switcher    | 3     | Render, EN→PT toggle, PT→EN toggle                               |
 | useBalance hook      | 2     | Success response, error state                                    |
 | useTransactions hook | 2     | Transaction array, empty list                                    |
@@ -151,7 +151,7 @@ frontend/
 │   │   └── authStore.ts        # AuthContext definition + useAuth hook
 │   ├── test/
 │   │   ├── components/
-│   │   │   ├── authSchemas.test.ts
+│   │   │   ├── authSchemas.test.tsx
 │   │   │   └── LanguageSwitcher.test.tsx
 │   │   ├── hooks/
 │   │   │   └── useWallet.test.tsx

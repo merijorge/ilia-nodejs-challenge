@@ -54,6 +54,7 @@ All input validation uses `class-validator` with global configuration:
 
 - **Type**: String
 - **Required**: Yes
+- **Min Length**: 1 character
 - **Max Length**: 128 characters
 - Note: No strength validation on login (only on registration)
 

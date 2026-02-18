@@ -288,7 +288,7 @@ curl -X POST http://localhost:3001/transactions \
 ## Common Errors
 
 **401 Unauthorized:** Missing or invalid token  
-**400 Bad Request:** Validation error, insufficient funds, missing or invalid Idempotency-Key header  
+**400 Bad Request:** Validation error (invalid input), insufficient funds, or missing/invalid Idempotency-Key header
 **404 Not Found:** Wallet not found  
 **409 Conflict:** Duplicate email on registration  
 **422 Unprocessable Entity:** Idempotency key reused with a different payload

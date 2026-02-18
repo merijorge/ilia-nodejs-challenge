@@ -81,6 +81,33 @@ npm run start:dev
 
 User Service: http://localhost:3002
 
+### 4. Frontend
+
+Open new terminal:
+
+```bash
+cd frontend
+npm install
+cp .env.example .env
+```
+
+The `.env` defaults point to the local backend services and require no changes:
+
+```env
+VITE_USER_SERVICE_URL=http://localhost:3002
+VITE_WALLET_SERVICE_URL=http://localhost:3001
+```
+
+Start the development server:
+
+```bash
+npm run dev
+```
+
+Frontend: http://localhost:5173
+
+**Note:** CORS is already configured in both backend services to allow requests from `http://localhost:5173`. Both services must be running before using the frontend.
+
 ## Running Tests
 
 ### Wallet Service
@@ -117,7 +144,16 @@ cd user-service
 npm run test:e2e
 ```
 
-Expected: 28 tests passing across 2 test suites
+Expected: 30 tests passing across 2 test suites
+
+### Frontend
+
+```bash
+cd frontend
+npm run test:run
+```
+
+Expected: 18 tests passing across 3 test suites
 
 ## Common Issues
 
@@ -137,6 +173,9 @@ Make sure PostgreSQL is running and credentials in `.env` are correct.
 ```bash
 npx prisma generate
 ```
+
+**Frontend cannot reach backend:**
+Ensure both services are running before starting the frontend. Check that `VITE_USER_SERVICE_URL` and `VITE_WALLET_SERVICE_URL` in `frontend/.env` match the ports the services are running on.
 
 ## Development
 

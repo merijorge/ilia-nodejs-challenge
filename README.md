@@ -1,20 +1,21 @@
 # Ilia Digital Wallet Challenge
 
 ![CI/CD](https://github.com/merijorge/ilia-nodejs-challenge/actions/workflows/test.yml/badge.svg)
-![Tests](https://img.shields.io/badge/tests-73%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-93%20passing-brightgreen)
 ![Node](https://img.shields.io/badge/node-20+-green)
 ![TypeScript](https://img.shields.io/badge/typescript-5.0-blue)
 ![Docker](https://img.shields.io/badge/docker-ready-blue)
 ![NestJS](https://img.shields.io/badge/nestjs-11-E0234E)
 
-A microservices-based digital wallet system with user management and transaction handling, built with NestJS and PostgreSQL.
+A microservices-based digital wallet system with user management and transaction handling, built with NestJS and PostgreSQL. Includes a React frontend for interacting with both services.
 
 ## Architecture
 
-This project implements a microservices architecture with two independent services:
+This project implements a microservices architecture with two independent backend services and a React frontend:
 
 - **User Service** (Port 3002): User registration, authentication, and profile management
 - **Wallet Service** (Port 3001): Wallet management, balance queries, and transaction processing
+- **Frontend** (Port 5173): React + Vite interface for wallet operations and authentication
 
 ### Key Features
 
@@ -26,19 +27,20 @@ This project implements a microservices architecture with two independent servic
 - **ACID Compliance**: Race condition protection and double spending prevention
 - **IDOR Prevention**: User context from JWT tokens, never from request data
 - **Separation of Concerns**: Clean architecture with distinct service responsibilities
-- **Comprehensive Testing**: 73 tests passing across 7 test suites
+- **Comprehensive Testing**: 93 tests passing across 9 test suites
 - **Docker Support**: Full containerization with Docker Compose
 - **OpenAPI Documentation**: Swagger UI available at `/api/docs` on the Wallet Service
 
 ## Tech Stack
 
 - **Framework**: NestJS (Node.js)
+- **Frontend**: React + Vite + TypeScript
 - **Database**: PostgreSQL (separate instance per service)
 - **ORM**: Prisma
 - **Authentication**: JWT (jsonwebtoken)
 - **Password Hashing**: bcrypt
 - **Validation**: class-validator
-- **Testing**: Jest + Supertest
+- **Testing**: Jest + Supertest (backend), Vitest + Testing Library (frontend)
 - **Containerization**: Docker + Docker Compose
 
 ## Prerequisites
@@ -62,6 +64,7 @@ Services will be available at:
 - User Service: http://localhost:3002
 - Wallet Service: http://localhost:3001
 - Swagger UI: http://localhost:3001/api/docs
+- Frontend: http://localhost:5173
 
 ### Local Development
 
@@ -89,12 +92,9 @@ npm run test:e2e
 
 **Expected:** 38 tests passing across 4 test suites:
 
-- wallet-e2e-spec.ts - Core wallet operations
-
+- wallet.e2e-spec.ts - Core wallet operations
 - performance.e2e-spec.ts - O(1) complexity verification
-
 - concurrent-transactions.e2e-spec.ts - Race condition testing
-
 - validation.e2e-spec.ts - Input validation rules
 
 ### User Service E2E Tests
@@ -117,28 +117,50 @@ cd user-service
 npm run test:e2e
 ```
 
-**Expected:** 28 tests passing across 2 test suites:
+**Expected:** 30 tests passing across 2 test suites:
 
-- user-e2e-spec.ts - User management and authentication
-
+- user.e2e-spec.ts - User management, authentication, rollback, and email normalization
 - validation.e2e-spec.ts - Input validation and security
+
+### Frontend Tests
+
+```bash
+cd frontend
+npm test
+```
+
+**Expected:** 18 tests passing across 3 test suites:
+
+- authSchemas.test.tsx - Auth validation rules
+- LanguageSwitcher.test.tsx - Language toggle behavior
+- useWallet.test.tsx - Wallet data fetching hooks
 
 ## Test Coverage
 
-Total: **73 tests** across **7 test suites**
+Total: **93 tests** across **9 test suites**
 
 ### Wallet Service (45 tests)
+
 - **Unit** - IdempotencyKey decorator (7 tests)
 - **Core Operations** - Balance queries, transaction creation, wallet management
 - **Performance** - O(1) complexity verification (10-10,000 transaction scale)
 - **Concurrency** - Race condition protection, idempotency under load
 - **Validation** - Input sanitization, boundary conditions, error handling
 
-### User Service (28 tests)
+### User Service (30 tests)
+
 - **User Management** - Registration, authentication, profile operations
 - **Validation** - Password strength, email format, XSS prevention
 - **Integration** - Cross-service wallet creation, rollback mechanisms
 - **Security** - JWT validation, IDOR prevention, authorization checks
+- **Resilience** - Registration rollback on wallet creation failure
+- **Normalization** - Email case normalization on login
+
+### Frontend (18 tests)
+
+- **Auth Schemas** - Login and register validation rules
+- **Components** - Language switcher render and toggle behavior
+- **Hooks** - Balance and transaction fetch with mocked API
 
 ## API Documentation
 
@@ -394,7 +416,7 @@ This provides best-effort consistency without requiring distributed transactions
 
 ### Performance & Scalability
 
-**Balance Operations:** All balance operations are **O(1)** constant-time, regardless of transaction count. Balance is stored and updated atomically using database-level `increment`/`decrement` operations—no recalculation from transaction history.
+**Balance Operations:** All balance operations are **O(1)** constant-time, regardless of transaction count. Balance is stored and updated atomically using database-level `increment`/`decrement` operations, no recalculation from transaction history.
 
 **Empirical Proof:** Balance lookup remains constant at 6-7ms whether a user has 10 or 10,000 transactions (variance: 11ms, well below 100ms threshold).
 
@@ -451,6 +473,7 @@ For implementation details, client usage examples, and concurrency testing resul
 **Transaction Lifecycle:** Prisma handles connection pooling. Transactions automatically committed or rolled back. No hanging connections.
 
 **Transaction Guarantees:**
+
 - Within wallet-service: ACID compliance via Prisma transactions (transaction creation + balance update atomic)
 - Within user-service: ACID compliance via Prisma for user operations
 - Cross-service: Eventual consistency via compensating transactions (no distributed ACID)
@@ -526,6 +549,10 @@ ilia-nodejs-challenge/
 │       ├── diagram.png
 │       ├── ms-transactions.yaml
 │       └── ms-users.yaml
+├── frontend/
+│   ├── src/
+│   ├── .env.example
+│   └── README.md
 ├── wallet-service/
 │   ├── src/
 │   │   ├── auth/              # JWT guards and strategies
