@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40">
+  <rect width="40" height="40" rx="12" fill="#0A0A0B"/>
+  <!-- Wallet body -->
+  <rect x="7" y="16" width="26" height="17" rx="2.5" fill="#C9A84C"/>
+  <!-- Wallet top flap/opening -->
+  <path d="M7 19 Q7 16 10 16 L30 16 Q33 16 33 19" fill="#A8872E"/>
+  <!-- Bills sticking out -->
+  <rect x="12" y="11" width="10" height="7" rx="1.5" fill="#B8962E" transform="rotate(-5 17 14)"/>
+  <rect x="15" y="11" width="10" height="7" rx="1.5" fill="#C9A84C" transform="rotate(3 20 14)"/>
+  <!-- Clasp/button on right -->
+  <rect x="26" y="21" width="7" height="7" rx="2" fill="#A8872E"/>
+  <circle cx="29.5" cy="24.5" r="2" fill="#C9A84C"/>
+  <!-- Wallet opening line -->
+  <line x1="7" y1="20" x2="33" y2="20" stroke="#0A0A0B" stroke-opacity="0.25" stroke-width="1"/>
+</svg>
