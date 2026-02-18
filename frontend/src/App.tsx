@@ -2,7 +2,10 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { Toaster } from "./components/ui/sonner";
 import "./i18n";
+import { LoginPage } from "./pages/auth/LoginPage";
+import { RegisterPage } from "./pages/auth/RegisterPage";
 import { AuthProvider } from "./stores/AuthProvider";
+import { useAuth } from "./stores/authStore";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -12,9 +15,6 @@ const queryClient = new QueryClient({
     },
   },
 });
-
-// Pages — imported lazily, added per branch
-import { useAuth } from "./stores/authStore";
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated } = useAuth();
@@ -37,7 +37,7 @@ function App() {
               path="/login"
               element={
                 <PublicRoute>
-                  <div>Login page coming soon</div>
+                  <LoginPage />
                 </PublicRoute>
               }
             />
@@ -45,7 +45,7 @@ function App() {
               path="/register"
               element={
                 <PublicRoute>
-                  <div>Register page coming soon</div>
+                  <RegisterPage />
                 </PublicRoute>
               }
             />
