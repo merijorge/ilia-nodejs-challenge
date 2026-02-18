@@ -41,7 +41,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
       path: request.url,
       method: request.method,
       message,
-      ...(status >= 500 && { error }),
+      error,
     };
 
     // Log error with context

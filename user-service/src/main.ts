@@ -32,7 +32,7 @@ async function bootstrap() {
   const port = process.env.PORT || 3002;
   await app.listen(port);
 
-  logger.log(`🚀 User Service running on port ${port}`);
+  logger.log(`User Service running on port ${port}`);
 
   // Graceful shutdown handlers
   process.on('SIGTERM', async () => {
