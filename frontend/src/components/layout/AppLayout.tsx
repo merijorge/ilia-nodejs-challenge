@@ -1,6 +1,7 @@
 import { useAuth } from "@/stores/authStore";
 import { useTranslation } from "react-i18next";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { LanguageSwitcher } from "./LanguageSwitcher";
 
 export const AppLayout = () => {
   const { t } = useTranslation();
@@ -38,6 +39,7 @@ export const AppLayout = () => {
           <span className="nav-user">
             {user?.first_name} {user?.last_name}
           </span>
+          <LanguageSwitcher />
           <button onClick={handleLogout} className="nav-logout">
             {t("nav.logout")}
           </button>

@@ -21,26 +21,31 @@ const formatDate = (dateStr: string) =>
     minute: "2-digit",
   }).format(new Date(dateStr));
 
-const TransactionRow = ({ tx }: { tx: Transaction }) => (
-  <div className="tx-row">
-    <div className="tx-type-indicator">
-      <span className={`tx-dot tx-dot-${tx.type.toLowerCase()}`} />
+const TransactionRow = ({ tx }: { tx: Transaction }) => {
+  const { t } = useTranslation();
+  return (
+    <div className="tx-row">
+      <div className="tx-type-indicator">
+        <span className={`tx-dot tx-dot-${tx.type.toLowerCase()}`} />
+      </div>
+      <div className="tx-info">
+        <span className="tx-type-label">
+          {tx.type === "CREDIT" ? t("transactions.credit") : t("transactions.debit")}
+        </span>
+        <span className="tx-date">{formatDate(tx.createdAt)}</span>
+      </div>
+      <div className="tx-amount-wrap">
+        <span className={`tx-amount tx-amount-${tx.type.toLowerCase()}`}>
+          {tx.type === "CREDIT" ? "+" : "-"}
+          {formatCurrency(tx.amount)}
+        </span>
+        <Badge variant="outline" className={`tx-badge tx-badge-${tx.type.toLowerCase()}`}>
+          {tx.type === "CREDIT" ? t("transactions.credit") : t("transactions.debit")}
+        </Badge>
+      </div>
     </div>
-    <div className="tx-info">
-      <span className="tx-type-label">{tx.type === "CREDIT" ? "Credit" : "Debit"}</span>
-      <span className="tx-date">{formatDate(tx.createdAt)}</span>
-    </div>
-    <div className="tx-amount-wrap">
-      <span className={`tx-amount tx-amount-${tx.type.toLowerCase()}`}>
-        {tx.type === "CREDIT" ? "+" : "-"}
-        {formatCurrency(tx.amount)}
-      </span>
-      <Badge variant="outline" className={`tx-badge tx-badge-${tx.type.toLowerCase()}`}>
-        {tx.type}
-      </Badge>
-    </div>
-  </div>
-);
+  );
+};
 
 export const DashboardPage = () => {
   const { t } = useTranslation();
@@ -54,8 +59,8 @@ export const DashboardPage = () => {
     <div className="dashboard">
       <div className="dashboard-header">
         <div>
-          <h1 className="dashboard-greeting">Good day, {user?.first_name}.</h1>
-          <p className="dashboard-subtitle">Here's your financial overview.</p>
+          <h1 className="dashboard-greeting">{t("dashboard.greeting", { name: user?.first_name })}</h1>
+          <p className="dashboard-subtitle">{t("dashboard.subtitle")}</p>
         </div>
         <Link to="/transactions">
           <Button className="dashboard-cta">{t("transactions.create")}</Button>
@@ -69,7 +74,7 @@ export const DashboardPage = () => {
           {balanceLoading ? (
             <Skeleton className="balance-skeleton" />
           ) : balanceError ? (
-            <div className="balance-error">Unable to load balance</div>
+            <div className="balance-error">{t("dashboard.balanceError")}</div>
           ) : (
             <div className="balance-amount">{formatCurrency(wallet?.balance ?? 0)}</div>
           )}
@@ -93,7 +98,7 @@ export const DashboardPage = () => {
           <h2 className="recent-title">{t("dashboard.recentTransactions")}</h2>
           {transactions && transactions.length > 5 && (
             <Link to="/transactions" className="recent-view-all">
-              View all
+              {t("dashboard.viewAll")}
             </Link>
           )}
         </div>

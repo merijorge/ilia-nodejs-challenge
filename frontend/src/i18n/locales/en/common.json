@@ -1,11 +1,15 @@
 {
   "app": {
-    "name": "Ilia Wallet"
+    "name": "Ília Digital Wallet"
   },
   "nav": {
     "dashboard": "Dashboard",
     "transactions": "Transactions",
     "logout": "Logout"
+  },
+  "brand": {
+    "tagline": "Your wealth, beautifully managed.",
+    "features": ["Secure JWT Authentication", "Real-time Balance", "Transaction History"]
   },
   "auth": {
     "login": "Login",
@@ -24,13 +28,18 @@
     "signIn": "Sign in"
   },
   "dashboard": {
+    "greeting": "Good day, {{name}}.",
+    "subtitle": "Here's your financial overview.",
+    "viewAll": "View all",
     "balance": "Current Balance",
     "lastUpdated": "Last updated",
     "recentTransactions": "Recent Transactions",
-    "noTransactions": "No transactions yet"
+    "noTransactions": "No transactions yet",
+    "balanceError": "Unable to load balance"
   },
   "transactions": {
     "create": "New Transaction",
+    "createSubtitle": "Add a credit or debit to your wallet",
     "amount": "Amount",
     "type": "Type",
     "credit": "Credit",
@@ -38,7 +47,9 @@
     "submit": "Submit",
     "success": "Transaction created successfully",
     "history": "Transaction History",
-    "empty": "No transactions found"
+    "empty": "No transactions found",
+    "count_one": "{{count}} transaction",
+    "count_other": "{{count}} transactions"
   },
   "errors": {
     "generic": "Something went wrong. Please try again.",

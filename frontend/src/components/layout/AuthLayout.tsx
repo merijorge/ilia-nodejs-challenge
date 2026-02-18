@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
+import { LanguageSwitcher } from "./LanguageSwitcher";
 
 interface AuthLayoutProps {
   children: ReactNode;
@@ -7,6 +8,8 @@ interface AuthLayoutProps {
 
 export const AuthLayout = ({ children }: AuthLayoutProps) => {
   const { t } = useTranslation();
+
+  const features = t("brand.features", { returnObjects: true }) as string[];
 
   return (
     <div className="auth-layout">
@@ -22,15 +25,19 @@ export const AuthLayout = ({ children }: AuthLayoutProps) => {
             </svg>
           </div>
           <h1 className="brand-name">{t("app.name")}</h1>
-          <p className="brand-tagline">Your wealth, beautifully managed.</p>
+          <p className="brand-tagline">{t("brand.tagline")}</p>
 
           <div className="brand-features">
-            {["Secure JWT Authentication", "Real-time Balance", "Transaction History"].map(feature => (
+            {features.map(feature => (
               <div key={feature} className="brand-feature">
                 <span className="feature-dot" />
                 <span>{feature}</span>
               </div>
             ))}
+          </div>
+
+          <div className="auth-lang-switcher">
+            <LanguageSwitcher />
           </div>
         </div>
 
