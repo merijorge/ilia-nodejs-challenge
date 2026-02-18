@@ -1,15 +1,31 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
+import request from 'supertest';
 import { WalletClientService } from '../src/wallet-client/wallet-client.service';
 import { AppModule } from './../src/app.module';
 import { PrismaService } from './../src/prisma/prisma.service';
-const request = require('supertest');
+
+interface AuthResponse {
+  access_token: string;
+  user: {
+    id: string;
+    email: string;
+    first_name: string;
+    last_name: string;
+  };
+}
+
+interface UserProfileResponse {
+  id: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+}
 
 describe('User Service (e2e)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
   let authToken: string;
-  let userId: string;
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -31,21 +47,21 @@ describe('User Service (e2e)', () => {
   });
 
   afterAll(async () => {
-    // Clean up all test data before closing
     await prisma.user.deleteMany();
     await prisma.$disconnect();
     await app.close();
   });
 
   beforeEach(async () => {
-    // Clean database before each test
     await prisma.user.deleteMany();
   });
 
   describe('Auth Flow', () => {
     describe('POST /auth/register', () => {
       it('should register a new user', async () => {
-        const response = await request(app.getHttpServer())
+        const response = await request(
+          app.getHttpServer() as import('http').Server,
+        )
           .post('/auth/register')
           .send({
             email: 'test@example.com',
@@ -55,19 +71,19 @@ describe('User Service (e2e)', () => {
           })
           .expect(201);
 
-        expect(response.body).toHaveProperty('access_token');
-        expect(response.body.user).toMatchObject({
+        const body = response.body as AuthResponse;
+        expect(body).toHaveProperty('access_token');
+        expect(body.user).toMatchObject({
           email: 'test@example.com',
           first_name: 'John',
           last_name: 'Doe',
         });
 
-        authToken = response.body.access_token;
-        userId = response.body.user.id;
+        authToken = body.access_token;
       });
 
       it('should fail with duplicate email', async () => {
-        await request(app.getHttpServer())
+        await request(app.getHttpServer() as import('http').Server)
           .post('/auth/register')
           .send({
             email: 'duplicate@example.com',
@@ -77,7 +93,7 @@ describe('User Service (e2e)', () => {
           })
           .expect(201);
 
-        await request(app.getHttpServer())
+        await request(app.getHttpServer() as import('http').Server)
           .post('/auth/register')
           .send({
             email: 'duplicate@example.com',
@@ -89,7 +105,7 @@ describe('User Service (e2e)', () => {
       });
 
       it('should fail with invalid email', async () => {
-        await request(app.getHttpServer())
+        await request(app.getHttpServer() as import('http').Server)
           .post('/auth/register')
           .send({
             email: 'invalid-email',
@@ -101,7 +117,7 @@ describe('User Service (e2e)', () => {
       });
 
       it('should fail with short password', async () => {
-        await request(app.getHttpServer())
+        await request(app.getHttpServer() as import('http').Server)
           .post('/auth/register')
           .send({
             email: 'test@example.com',
@@ -115,16 +131,20 @@ describe('User Service (e2e)', () => {
 
     describe('POST /auth/login', () => {
       beforeEach(async () => {
-        await request(app.getHttpServer()).post('/auth/register').send({
-          email: 'login@example.com',
-          password: 'Password123',
-          first_name: 'Login',
-          last_name: 'User',
-        });
+        await request(app.getHttpServer() as import('http').Server)
+          .post('/auth/register')
+          .send({
+            email: 'login@example.com',
+            password: 'Password123',
+            first_name: 'Login',
+            last_name: 'User',
+          });
       });
 
       it('should login with valid credentials', async () => {
-        const response = await request(app.getHttpServer())
+        const response = await request(
+          app.getHttpServer() as import('http').Server,
+        )
           .post('/auth/login')
           .send({
             email: 'login@example.com',
@@ -132,8 +152,9 @@ describe('User Service (e2e)', () => {
           })
           .expect(200);
 
-        expect(response.body).toHaveProperty('access_token');
-        expect(response.body.user).toMatchObject({
+        const body = response.body as AuthResponse;
+        expect(body).toHaveProperty('access_token');
+        expect(body.user).toMatchObject({
           email: 'login@example.com',
           first_name: 'Login',
           last_name: 'User',
@@ -141,7 +162,7 @@ describe('User Service (e2e)', () => {
       });
 
       it('should fail with invalid email', async () => {
-        await request(app.getHttpServer())
+        await request(app.getHttpServer() as import('http').Server)
           .post('/auth/login')
           .send({
             email: 'wrong@example.com',
@@ -151,7 +172,7 @@ describe('User Service (e2e)', () => {
       });
 
       it('should fail with invalid password', async () => {
-        await request(app.getHttpServer())
+        await request(app.getHttpServer() as import('http').Server)
           .post('/auth/login')
           .send({
             email: 'login@example.com',
@@ -164,7 +185,9 @@ describe('User Service (e2e)', () => {
 
   describe('User Profile', () => {
     beforeEach(async () => {
-      const response = await request(app.getHttpServer())
+      const response = await request(
+        app.getHttpServer() as import('http').Server,
+      )
         .post('/auth/register')
         .send({
           email: 'profile@example.com',
@@ -173,12 +196,14 @@ describe('User Service (e2e)', () => {
           last_name: 'User',
         });
 
-      authToken = response.body.access_token;
+      authToken = (response.body as AuthResponse).access_token;
     });
 
     describe('GET /user/profile', () => {
       it('should get user profile', async () => {
-        const response = await request(app.getHttpServer())
+        const response = await request(
+          app.getHttpServer() as import('http').Server,
+        )
           .get('/user/profile')
           .set('Authorization', `Bearer ${authToken}`)
           .expect(200);
@@ -191,11 +216,13 @@ describe('User Service (e2e)', () => {
       });
 
       it('should fail without token', async () => {
-        await request(app.getHttpServer()).get('/user/profile').expect(401);
+        await request(app.getHttpServer() as import('http').Server)
+          .get('/user/profile')
+          .expect(401);
       });
 
       it('should fail with invalid token', async () => {
-        await request(app.getHttpServer())
+        await request(app.getHttpServer() as import('http').Server)
           .get('/user/profile')
           .set('Authorization', 'Bearer invalid-token')
           .expect(401);
@@ -204,7 +231,9 @@ describe('User Service (e2e)', () => {
 
     describe('PUT /user/profile', () => {
       it('should update user profile', async () => {
-        const response = await request(app.getHttpServer())
+        const response = await request(
+          app.getHttpServer() as import('http').Server,
+        )
           .put('/user/profile')
           .set('Authorization', `Bearer ${authToken}`)
           .send({
@@ -220,7 +249,9 @@ describe('User Service (e2e)', () => {
       });
 
       it('should partially update profile', async () => {
-        const response = await request(app.getHttpServer())
+        const response = await request(
+          app.getHttpServer() as import('http').Server,
+        )
           .put('/user/profile')
           .set('Authorization', `Bearer ${authToken}`)
           .send({
@@ -228,12 +259,13 @@ describe('User Service (e2e)', () => {
           })
           .expect(200);
 
-        expect(response.body.first_name).toBe('OnlyFirst');
-        expect(response.body.last_name).toBe('User');
+        const body = response.body as UserProfileResponse;
+        expect(body.first_name).toBe('OnlyFirst');
+        expect(body.last_name).toBe('User');
       });
 
       it('should fail without token', async () => {
-        await request(app.getHttpServer())
+        await request(app.getHttpServer() as import('http').Server)
           .put('/user/profile')
           .send({
             first_name: 'Updated',
@@ -242,6 +274,7 @@ describe('User Service (e2e)', () => {
       });
     });
   });
+
   describe('Registration Rollback', () => {
     it('should not persist user if wallet creation fails', async () => {
       const moduleFixture = await Test.createTestingModule({
@@ -266,7 +299,9 @@ describe('User Service (e2e)', () => {
       await testApp.init();
       const testPrisma = moduleFixture.get<PrismaService>(PrismaService);
 
-      const response = await request(testApp.getHttpServer())
+      const response = await request(
+        testApp.getHttpServer() as import('http').Server,
+      )
         .post('/auth/register')
         .send({
           email: 'rollback@example.com',
@@ -277,7 +312,6 @@ describe('User Service (e2e)', () => {
 
       expect(response.status).toBe(503);
 
-      // Verify user was rolled back and does not persist
       const user = await testPrisma.user.findUnique({
         where: { email: 'rollback@example.com' },
       });
@@ -289,8 +323,7 @@ describe('User Service (e2e)', () => {
 
   describe('Email Normalization on Login', () => {
     it('should authenticate successfully when login email case differs from registration', async () => {
-      // Register with mixed case — email normalized to lowercase on storage
-      await request(app.getHttpServer())
+      await request(app.getHttpServer() as import('http').Server)
         .post('/auth/register')
         .send({
           email: 'MixedCase@Example.COM',
@@ -300,8 +333,9 @@ describe('User Service (e2e)', () => {
         })
         .expect(201);
 
-      // Login with different casing — should still authenticate
-      const response = await request(app.getHttpServer())
+      const response = await request(
+        app.getHttpServer() as import('http').Server,
+      )
         .post('/auth/login')
         .send({
           email: 'MIXEDCASE@EXAMPLE.COM',
@@ -309,8 +343,9 @@ describe('User Service (e2e)', () => {
         })
         .expect(200);
 
-      expect(response.body).toHaveProperty('access_token');
-      expect(response.body.user.email).toBe('mixedcase@example.com');
+      const body = response.body as AuthResponse;
+      expect(body).toHaveProperty('access_token');
+      expect(body.user.email).toBe('mixedcase@example.com');
     });
   });
 });

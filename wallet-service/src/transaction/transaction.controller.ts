@@ -18,6 +18,10 @@ import { IdempotencyKey } from '../common/decorators/idempotency-key.decorator';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
 import { TransactionService } from './transaction.service';
 
+interface AuthenticatedRequest {
+  user: { userId: string; email: string };
+}
+
 @ApiBearerAuth()
 @ApiTags('transactions')
 @Controller('transactions')
@@ -65,7 +69,7 @@ export class TransactionController {
   async createTransaction(
     @Body() createTransactionDto: CreateTransactionDto,
     @IdempotencyKey() idempotencyKey: string,
-    @Request() req,
+    @Request() req: AuthenticatedRequest,
   ) {
     const userId = req.user.userId;
 
@@ -102,7 +106,7 @@ export class TransactionController {
       },
     },
   })
-  async getTransactions(@Request() req) {
+  async getTransactions(@Request() req: AuthenticatedRequest) {
     const userId = req.user.userId;
     const transactions =
       await this.transactionService.getUserTransactions(userId);

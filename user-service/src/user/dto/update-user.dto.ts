@@ -11,7 +11,7 @@ export class UpdateUserDto {
     message:
       'First name can only contain letters, spaces, hyphens, and apostrophes',
   })
-  @Transform(({ value }) => value?.trim())
+  @Transform(({ value }: { value: string }) => value?.trim())
   first_name?: string;
 
   @IsString({ message: 'Last name must be a string' })
@@ -21,6 +21,6 @@ export class UpdateUserDto {
     message:
       'Last name can only contain letters, spaces, hyphens, and apostrophes',
   })
-  @Transform(({ value }) => value?.trim())
+  @Transform(({ value }: { value: string }) => value?.trim())
   last_name?: string;
 }

@@ -4,11 +4,13 @@ import {
   ExecutionContext,
 } from '@nestjs/common';
 import { isUUID } from 'class-validator';
+import { Request } from 'express';
 
 export const IdempotencyKey = createParamDecorator(
   (data: unknown, ctx: ExecutionContext): string => {
-    const request = ctx.switchToHttp().getRequest();
-    const raw = request.headers['idempotency-key']; // always lowercase
+    const request = ctx.switchToHttp().getRequest<Request>();
+    const raw: string | string[] | undefined =
+      request.headers['idempotency-key'];
 
     // Reject arrays/duplicates (IETF compliance)
     if (Array.isArray(raw)) {

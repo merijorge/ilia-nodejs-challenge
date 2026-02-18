@@ -3,6 +3,10 @@ import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 
+interface InternalJwtPayload {
+  service: string;
+}
+
 @Injectable()
 export class InternalJwtStrategy extends PassportStrategy(
   Strategy,
@@ -24,7 +28,7 @@ export class InternalJwtStrategy extends PassportStrategy(
     });
   }
 
-  async validate(payload: any) {
+  validate(payload: InternalJwtPayload) {
     // Validate that it's from a trusted internal service
     if (!payload.service || payload.service !== 'user-service') {
       throw new UnauthorizedException(

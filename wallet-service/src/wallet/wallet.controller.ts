@@ -18,6 +18,10 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CreateWalletDto } from './dto/create-wallet.dto';
 import { WalletService } from './wallet.service';
 
+interface AuthenticatedRequest {
+  user: { userId: string; email: string };
+}
+
 @ApiTags('wallet')
 @Controller('wallet')
 export class WalletController {
@@ -74,7 +78,7 @@ export class WalletController {
   })
   @ApiResponse({ status: 401, description: 'Missing or invalid token' })
   @ApiResponse({ status: 404, description: 'Wallet not found' })
-  async getBalance(@Request() req) {
+  async getBalance(@Request() req: AuthenticatedRequest) {
     const userId = req.user.userId;
     return await this.walletService.getBalance(userId);
   }
@@ -102,7 +106,7 @@ export class WalletController {
   })
   @ApiResponse({ status: 401, description: 'Missing or invalid token' })
   @ApiResponse({ status: 404, description: 'Wallet not found' })
-  async verifyBalance(@Request() req) {
+  async verifyBalance(@Request() req: AuthenticatedRequest) {
     const userId = req.user.userId;
     return await this.walletService.verifyBalanceIntegrity(userId);
   }
